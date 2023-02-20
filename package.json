@@ -1,0 +1,25 @@
+{
+  "name": "omegabot",
+  "version": "5.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/voice": "latest",
+    "colors": "^1.4.0",
+    "country-code-emoji": "latest",
+    "discord.js": "^14.3.0",
+    "dotenv": "latest",
+    "ffmpeg-static": "latest",
+    "fs": "latest",
+    "mongoose": "^6.8.1",
+    "node-fetch": "^2.6.7",
+    "node-internet-radio": "^0.2.1",
+    "opusscript": "latest",
+    "sodium-native": "^3.4.1"
+  }
+}
