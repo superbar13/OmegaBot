@@ -38,7 +38,7 @@ module.exports = {
                 .setTimestamp();
             await interaction.editReply({ embeds: [embed] });
         } else {
-            await interaction.editReply('Vous devez être administrateur pour utiliser cette commande');
+            await interaction.editReply('> ❌ Vous devez être administrateur pour utiliser cette commande');
         }
     }
 };

@@ -50,7 +50,11 @@ const serverSchema = new Schema({
         id: {
             type: String,
             required: false
-        }
+        },
+        description: {
+            type: String,
+            required: false
+        },  
     },
     music: {
         title: {
@@ -102,7 +106,7 @@ const serverSchema = new Schema({
         type: {
             // radio or music
             type: String,
-            required: false
+            default: "none"
         },
     }
 });

@@ -1,4 +1,5 @@
 module.exports = {
+    name: 'bulkutility',
     incrementAllFieldsValue: (filter, update, arrayFilters) => {
         return {
             updateMany: {

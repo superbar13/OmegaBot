@@ -21,7 +21,7 @@ module.exports = {
             var command = client.textcommands.get(commandName);
 
             // Si aucune commande trouvé
-            if(!command){
+            if(!command || command.type != "slash") {
                 return await message.reply({ embeds: [new EmbedBuilder().setTitle("Commande inexistante").setDescription(`Cette commande est introuvable dans ${client.user.username}.`).setFooter({text:`N'hésitez pas à signaler ce problème au staff de ${client.user.username} !`}).setColor(client.embedcolor)] })
             }
 
@@ -56,11 +56,11 @@ module.exports = {
             }
 
             // Modifier le message pour qu'il ressemble un peu plus à une interaction
-            message.user = message.author
-            message.sourceType = 'textCommand'
-            message.options = {}
-            message.awaitModalSubmit = () => methodNotExists(message, 'awaitModalSubmit')
-            message.showModal = () => methodNotExists(message, 'showModal')
+            message.user = message.author;
+            message.sourceType = 'textCommand';
+            message.options = {};
+            message.awaitModalSubmit = () => methodNotExists(message, 'awaitModalSubmit');
+            message.showModal = () => methodNotExists(message, 'showModal');
             message.deferReply = async (options) => {
                 if(options?.ephemeral) {
                     messageResponse = await message.user.send('Veuillez patienter pendant l\'exécution de la commande...');
@@ -69,9 +69,9 @@ module.exports = {
                 }
                 return messageResponse;
             }
-            message.fetchReply = async () => {return messageResponse;}
-            message.followUp = async (options) => {messageResponse.send(options);}
-            message.deleteReply = async () => {messageResponse.delete();}
+            message.fetchReply = async () => {return messageResponse;};
+            message.followUp = async (options) => {messageResponse.send(options);};
+            message.deleteReply = async () => {messageResponse.delete();};
             message.editReply = async (content) => {
                 // Si on peut modifier le message, le modifier
                 if(messageResponse?.editable){
@@ -82,6 +82,16 @@ module.exports = {
                     if(messageResponse?.deletable) await messageResponse.delete();
                     messageResponse = await message.reply(content);
                 }
+            }
+            message.reply = async (content) => {
+                // sauvegarder le nouveau message de réponse
+                messageResponse = await message.channel.send(content);
+                // retourner le message de réponse
+                return messageResponse;
+            }
+            message.deleteToReply = async () => {
+                // Supprimer le message de l'utilisateur
+                await message.delete();
             }
             
             let options = command.data.options;
@@ -170,15 +180,25 @@ module.exports = {
 
             // Obtenir le contenu d'un argument par son nom
             function getArg(argName){
+                // Vérifier si l'argument n'est pas un argument slash mais un argument traditionnel
+                for(var i = 0; i < args.length; i++){
+                    let index = options.findIndex(option => option.name == argName); // search options argName position
+                    if(!args[i].includes(':') && index == i) return args[i]; // if args not include ":" and index == i
+                }
+                // Cette verification est nécessaire car elle permet de rendre plus facile l'utilisation d'une commande traditionnelle si un ou plusieurs arguments n'ont pas de ":" dans leurs noms (ex: !commande arg1 arg2 arg3)
+
                 // Diviser chaque argument par un ":"
                 for(var i = 0; i < args.length; i++){
-                    if(args[i].includes(': ')) {
-                        argument = args[i].split(': ')
-                    } else {
-                        argument = args[i].split(':')
+                    if(args[i].includes(':')) {
+                        if(args[i].includes(': ')) {
+                            argument = args[i].split(': ')
+                        } else {
+                            argument = args[i].split(':')
+                        }
+                        if(argument[0] === argName) return argument.slice(1).join(':');
                     }
-                    if(argument[0] === argName) return argument.slice(1).join(':');
                 }
+                // Cette verification est nécessaire car elle permet de rendre la selection d'un argument façon slash possible si un ou plusieurs arguments ont un ":" dans leurs noms (ex: !commande arg1:arg1value arg2:arg2value arg3:arg3value)
 
                 // Retourner null si aucune valeur n'est trouvé
                 return null;
@@ -193,183 +213,186 @@ module.exports = {
             message.options.getSubcommandGroup = () => {
                 return subcommandGroup;
             }
-            message.options.get = (parametername) => {
-                return getArg(parametername)?.toString() || null;
-            }
             message.options.getString = (parametername) => {
                 return getArg(parametername)?.toString() || null;
             }
             message.options.getBoolean = (parametername) => {
-                var argument = getArg(parametername)
-                if(argument && argument.toLowerCase() != 'false') {return true} else {return false}
+                var argument = getArg(parametername);
+                if(argument && argument.toLowerCase() == 'true') {
+                    return true
+                } else {
+                    if(argument && argument.toLowerCase() == 'false') {
+                        return false
+                    }
+                }
+
+                // Rien de valide, on retourne null
+                return null;
             }
             message.options.getUser = (parametername) => {
-                var argument = getArg(parametername)
+                var argument = getArg(parametername);
                 if(argument){
                     // Obtenir l'identifiant
-                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '')
-                    id = id.replace(/[^0-9]/g, '')
+                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '');
+                    id = id.replace(/[^0-9]/g, '');
                     
                     // Obtenir l'utilisateur
-                    var user
-                    try {
-                        user = client.users.fetch(id).catch(err => {})
-                    } catch (error){}
                     
-                    // Et le retourner
-                    return user?.user || user
-                } else return null
+                    var user = client.users.cache.get(id);
+                    if(user) return user;
+
+                    return null;
+                } else return null;
             }
             message.options.getMember = (parametername) => {
-                var argument = getArg(parametername)
+                var argument = getArg(parametername);
                 if(argument){
                     // Obtenir l'identifiant
-                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '')
-                    id = id.replace(/[^0-9]/g, '')
+                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '');
+                    id = id.replace(/[^0-9]/g, '');
                     
                     // Obtenir le membre
-                    var member
-                    try {
-                        member = message.guild.members.fetch(id).catch(err => {})
-                    } catch (error){}
 
-                    // Et le retourner
-                    return member
-                } else return null
+                    var member = message?.guild?.members?.cache?.get(id);
+                    if(member) return member;
+
+                    return null;
+                } else return null;
             }
             message.options.getChannel = (parametername) => {
-                var argument = getArg(parametername)
+                var argument = getArg(parametername);
                 if(argument){
                     // Obtenir l'identifiant
-                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '')
-                    id = id.replace(/[^0-9]/g, '')
+                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '');
+                    id = id.replace(/[^0-9]/g, '');
 
                     // Obtenir le salon
-                    var channel
-                    try {
-                        channel = message.guild.channels.fetch(id).catch(err => {})
-                    } catch (error){}
 
-                    // Et le retourner
-                    return channel
+                    var channel = message?.guild?.channels?.cache?.get(id);
+                    if(channel) return channel;
+
+                    return null;
                 } else return null
             }
             message.options.getRole = (parametername) => {
-                var argument = getArg(parametername)
+                var argument = getArg(parametername);
                 if(argument){
                     // Obtenir l'identifiant
-                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '')
-                    id = id.replace(/[^0-9]/g, '')
+                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '');
+                    id = id.replace(/[^0-9]/g, '');
                     
                     // Obtenir le rôle
-                    var role
-                    try {
-                        role = message.guild.roles.fetch(id).catch(err => {})
-                    } catch (error){}
 
-                    // Et le retourner
-                    return role
-                } else return null
+                    var role = message?.guild?.roles?.cache?.get(id);
+                    if(role) return role;
+
+                    return null;
+                } else return null;
             }
             message.options.getMentionable = (parametername) => {
-                var argument = getArg(parametername)
+                var argument = getArg(parametername);
                 if(argument){
                     // Obtenir l'identifiant
-                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '')
-                    id = id.replace(/[^0-9]/g, '')
+                    var id = argument.replace('<', '').replace('>', '').replace('@', '').replace('!', '').replace('&', '').replace('#', '').replace(' ', '');
+                    id = id.replace(/[^0-9]/g, '');
 
-                    // Obtenir le membre ou le rôle (les seuls valeurs que la fonction originale est censé retourner)
-                    var member = message?.guild?.members?.cache?.get(id)
-                    if(member) return member
-                    var role = message?.guild?.roles?.cache?.get(id)
-                    if(role) return role
+                    // Obtenir le membre ou le rôle
 
-                    // Et si on a rien, on retourne null
-                    return null
-                } else return null
+                    var user = client.users.cache.get(id);
+                    if(user) return user;
+                    var role = message?.guild?.roles?.cache?.get(id);
+                    if(role) return role;
+                    
+                    return null;
+                } else return null;
             }
             message.options.getInteger = (parametername) => {
-                var argument = getArg(parametername)
-                if(argument && !isNaN(parseInt(argument))) return parseInt(argument)
-                else return null
+                var argument = getArg(parametername);
+                if(argument && !isNaN(parseInt(argument))) return parseInt(argument);
+                else return null;
             }
             message.options.getNumber = (parametername) => {
-                var argument = getArg(parametername)
-                if(argument && !isNaN(parseFloat(argument))) return parseFloat(argument)
-                else return null
+                var argument = getArg(parametername);
+                if(argument && !isNaN(parseFloat(argument))) return parseFloat(argument);
+                else return null;
             }
             message.options.getAttachment = () => {
-                // Obtenir le premier attachement (pas ouf cette fonction, venez faire une PR les reufs qui regarde le code)
-                var attachment = message?.attachments?.first()
-                return attachment
+                return message?.attachments?.first() || null;
             }
 
             // Vérifier qu'on ai rempli toutes les options requises
             let stop = false;
             let stopreason = 'Aucune raison, mais la commande n\'a pas été exécutée.';
             for(let option of options){
-                // Si c'est un nombre ou un int, vérifier qu'il est bien dans les limites
-                if(option.type == 10 || option.type == 4){
-                    if(message.options.getNumber(option.name) < option.min_value){
-                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre supérieure à ${option.min_value}.`;
+                if(getArg(option.name)) {
+                    // Si c'est un nombre ou un int, vérifier qu'il est bien dans les limites
+                    if(option.type == 10 || option.type == 4){
+                        if(message.options.getNumber(option.name) < option.min_value){
+                            stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre supérieure à ${option.min_value}.`;
+                        }
+                        if(option.min_value && message.options.getNumber(option.name) > option.max_value){
+                            stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre inférieure à ${option.max_value}.`;
+                        }
+                        if(message.options.getInteger(option.name) < option.min_value){
+                            stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre entier supérieure à ${option.min_value}.`;
+                        }
+                        if(option.max_value && message.options.getInteger(option.name) > option.max_value){
+                            stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre entier inférieure à ${option.max_value}.`;
+                        }
                     }
-                    if(option.min_value && message.options.getNumber(option.name) > option.max_value){
-                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre inférieure à ${option.max_value}.`;
+                    // Si c'est un string, vérifier la longueur
+                    if(option.type == 3) {
+                        if(option.min_length && message.options.getString(option.name).length < option.min_length){
+                            stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit faire au moins ${option.min_length} caractères.`;
+                        }
+                        if(option.max_length && message.options.getString(option.name).length > option.max_length){
+                            stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit faire moins de ${option.max_length} caractères.`;
+                        }
                     }
-                    if(message.options.getInteger(option.name) < option.min_value){
-                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre entier supérieure à ${option.min_value}.`;
+                    // Si l'option n'est pas du bon type (et qu'on a entrer quelque chose)
+                    if(option.type == 3 && !message.options.getString(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être un \`texte\`.`;
                     }
-                    if(option.max_value && message.options.getInteger(option.name) > option.max_value){
-                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit être un nombre entier inférieure à ${option.max_value}.`;
+                    if(option.type == 4 && !message.options.getInteger(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être un \`nombre entier\`.`;
                     }
-                }
-                // Si c'est un string, vérifier la longueur
-                if(option.type == 3) {
-                    if(option.min_length && message.options.getString(option.name).length < option.min_length){
-                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit faire au moins ${option.min_length} caractères.`;
+                    if(option.type == 5 && !message.options.getBoolean(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être un \`booléen\`.`;
                     }
-                    if(option.max_length && message.options.getString(option.name).length > option.max_length){
-                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` doit faire moins de ${option.max_length} caractères.`;
+                    if(option.type == 6 && !message.options.getUser(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un utilisateur\`.`;
                     }
-                }
-                // Si l'option n'est pas du bon type (et qu'on a entrer quelque chose)
-                if(option.type == 3 && !message.options.getString(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être un \`texte\`.`;
-                }
-                if(option.type == 4 && !message.options.getInteger(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être un \`nombre entier\`.`;
-                }
-                if(option.type == 6 && !message.options.getUser(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un utilisateur\`.`;
-                }
-                if(option.type == 7 && !message.options.getChannel(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un salon\`.`;
-                }
-                if(option.type == 8 && !message.options.getRole(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un rôle\`.`;
-                }
-                if(option.type == 9 && !message.options.getMentionable(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un utilisateur ou un rôle\`.`;
-                }
-                if(option.type == 10 && !message.options.getNumber(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être un \`nombre\`.`;
-                }
-                // Si l'options est requise, vérifier qu'on ai entrer quelque chose
-                if(option.required && !getArg(option.name)){
-                    stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` n'est pas spécifié dans la commande que vous venez d'exécuter. Veuillez utiliser la commande comme ça : \`${prefix}${commandName} ${hasSubcommand ? (subcommand + ' '):''}${hasSubcommandGroup ? (subcommandGroup + ' ' + subcommand + ' '):''}${options.filter(op => op.required).map(op => `${op.name}:<un contenu>`).join(', ')}\``;
+                    if(option.type == 7 && !message.options.getChannel(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un salon\`.`;
+                    }
+                    if(option.type == 8 && !message.options.getRole(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un rôle\`.`;
+                    }
+                    if(option.type == 9 && !message.options.getMentionable(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être une \`mention vers un utilisateur ou un rôle\`.`;
+                    }
+                    if(option.type == 10 && !message.options.getNumber(option.name)){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` est invalide, celui-ci doit être un \`nombre\`.`;
+                    }
+                } else {
+                    // Si l'options est requise, vérifier qu'on ai entrer quelque chose
+                    if(option.required){
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` n'est pas spécifié dans la commande que vous venez d'exécuter. Veuillez utiliser la commande comme ça : \`${prefix}${commandName} ${hasSubcommand ? (subcommand + ' '):''}${hasSubcommandGroup ? (subcommandGroup + ' ' + subcommand + ' '):''}${options.filter(op => op.required).map(op => `${op.name}:<un contenu>`).join(', ')}\``;
+                    }
                 }
             }
             // Si on a pas rempli toutes les options requises, annuler la commande
             if(stop == true) {
                 message.reply({ embeds: [new EmbedBuilder().setTitle("Commande annulée").setDescription(stopreason).setColor("#ff0000")] });
-                return console.log("[MESSAGE] Commande executée par " + message.author.username + " (" + message.author.id + ") annulée car un argument était invalide.".yellow);
+                return console.log(("[MESSAGE] Commande executée par " + message.author.username + " (" + message.author.id + ") annulée car un argument était invalide.").yellow);
             }
             // Exécuter la commande
             try {
                 await client.textcommands.get(commandName).execute(message);
                 console.log(`[MESSAGE] Commande ${commandName} exécutée avec succès par ${message.author.username} (${message.author.id} sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id})`.brightGreen);
             } catch (error){
-                console.log(`[ERROR] Une erreur est survenue lors de l'exécution de la commande ${commandName} par ${message.author.username} (${message.author.id} sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id})`.red);
+                message.reply({ embeds: [new EmbedBuilder().setTitle("Une erreur est survenue").setDescription("Une erreur est survenue lors de l'exécution de la commande, veuillez contacter un administrateur.").setColor("#ff0000")] });
+                console.log(`[ERROR] Commande ${commandName} exécutée par ${message.author.username} (${message.author.id} sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id}) a échoué`.brightRed);
                 console.log(error);
             }
         });

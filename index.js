@@ -9,7 +9,7 @@ var colors = require('colors');
 colors.enable();
 
 // .env file
-require('dotenv').config()
+require('dotenv').config();
 
 connectToDatabase();
 async function connectToDatabase() {
@@ -51,18 +51,23 @@ const client = new Client({
 	]
 });
 
-client.bulkutility = require('./modules/BulkUtility');
+// version
+client.version = process.env.VERSION;
+
+// prefix
+client.prefix = process.env.PREFIX
+
+// create a new collection for the commands
+client.commands = new Map();
+client.textcommands = new Map();
 
 // mongo models on the client
 client.usersdb = require('./models/users.model.js');
 client.serversdb = require('./models/servers.model.js');
 client.interserversdb = require('./models/interservers.model.js');
 
-// get command prefix from env
-client.prefix = process.env.PREFIX
-// create a new collection for the commands
-client.commands = new Map();
-client.textcommands = new Map();
+// mongo utility bulkutility
+client.bulkutility = require('./utils/BulkUtility.js');
 
 // when the client is ready, run this code
 // this event will only trigger one time after logging in
@@ -70,6 +75,8 @@ client.once('ready', async () => {
     console.log('[CLIENT] Ready!'.brightGreen);
 
 	client.embedcolor = "#3EA9E0";
+	client.owner = process.env.OWNER;
+	client.invite = 'https://discord.com/api/oauth2/authorize?client_id='+client.user.id+'&permissions=8&scope=bot%20applications.commands';
 
 	// SERVERS TO DATABASE //
 	// check what servers the bot is in and add them to the database
@@ -92,30 +99,143 @@ client.once('ready', async () => {
 	servers.forEach(async (server) => {
 		// check if the server exists
 		var guild = client.guilds.cache.get(server.id);
-		if(!guild){
+		if(!guild) {
 			// delete the server document
-			await client.serversdb.deleteOne({ id: server.id });
-			console.log(`[DATABASE] Server ${server.id} deleted from database`.yellow);
+			await client.serversdb.deleteOne({ id: guild.id });
+			console.log(`[DATABASE] Server ${guild.id} deleted from database`.yellow);
 		}
 	});
 
 	// MODULES //
+	client.modules = new Collection();
+	client.disabledmodules = [];
 	const modulesFiles = fs.readdirSync('./modules').filter(file => file.endsWith('.js'));
 
+	// read a file called config.json for global enabled modules and config
+	try {
+		client.config = require('./config.json');
+	} catch (error) {
+		console.log('[CONFIG] config.json not found, creating one...'.brightRed);
+		// create a new config file
+		client.config = {}
+		// save the config file
+		fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
+	}
+	
 	// loop through the modules
 	console.log(`[MODULES] Chargement des modules...`.brightBlue);
 	for (const file of modulesFiles) {
 		// import the module
 		const module = await require(`./modules/${file}`);
 		module.client = client;
+
+		// check if .modules exists in the config file
+		if(!client.config.modules) {
+			// create the .modules object in the config file
+			client.config.modules = {};
+			// save the config file
+			fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
+		}
+
+		// check if the module don't exists in the config file
+		if(module.name) {
+			if(!client.config.modules[module.name]) {
+				// add the module to the config file
+				client.config.modules[module.name] = {
+					enabled: true
+				}
+				// if addedconfig exist in the module
+				if(module.addedconfig) {
+					// add the addedconfig to the config file
+					client.config.modules[module.name].addedconfig = module.addedconfig;
+				}
+				// save the config file
+				fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
+			} else {
+				// if addedconfig exist in the module
+				if(module.addedconfig) {
+					// check if the addedconfig don't exists in the config file
+					if(!client.config.modules[module.name].addedconfig) {
+						// add the addedconfig to the config file
+						client.config.modules[module.name].addedconfig = module.addedconfig;
+						// save the config file
+						fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
+					} else {
+						// check if the addedconfig is different in the config file
+						if(JSON.stringify(module.addedconfig) !== JSON.stringify(client.config.modules[module.name].addedconfig)) {
+							// but keep old configuration values for existing keys and add new keys
+							client.config.modules[module.name].addedconfig = Object.assign(module.addedconfig, client.config.modules[module.name].addedconfig);
+							// save the config file
+							fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
+						}
+						// check if there are keys in the config file that don't exists in the module
+						for (const key in client.config.modules[module.name].addedconfig) {
+							if(!module.addedconfig[key]) {
+								// delete the key
+								delete client.config.modules[module.name].addedconfig[key];
+								// save the config file
+								fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
+							}
+						}
+					}
+				}
+			}
+		}
+		console.log(`[MODULES] Module ${file} configuré...`.brightBlue);
+						
+		// check if the module is enabled
+		if(!client.config.modules[module.name]?.enabled && module.name) {
+			console.log(`[MODULES] Module ${file} désactivé !`.yellow);
+			client.disabledmodules.push(module.name);
+			continue;
+		}
+		let moduleerror = false;
+		let modulesnotfound = [];
+		if(module.dependencies) {
+			// check if the dependencies are installed (the dependencies are modules names)
+			for (const dependency of module.dependencies) {
+				let secondcondition = false;
+				// it is true only if the module is not defined in the config file or if it is defined but disabled
+				if(!client.config.modules[dependency.replace('.js', '')]) {
+					secondcondition = true;
+				} else {
+					if(!client.config.modules[dependency.replace('.js', '')]?.enabled) {
+						secondcondition = true;
+					}
+				}
+				console.log(!modulesFiles.includes(dependency), secondcondition);
+				if(!modulesFiles.includes(dependency) || secondcondition) {
+					moduleerror = true;
+					modulesnotfound.push(dependency);
+					console.log(`[MODULES] Module ${module.name} dépend du module ${dependency} qui n'est pas installé ou activé !`.brightRed);
+				}
+			}
+		}
+		if(moduleerror) {
+			console.log(`[MODULES] Module ${module.name} non chargé !, les modules suivants sont requis : ${modulesnotfound.join(', ')}`.brightRed);
+			client.config.modules[module.name].enabled = false;
+			client.disabledmodules.push(module.name);
+			continue;
+		}
 		if(module?.run) {
-			console.log(`[MODULES] Exécution du module ${file}...`.brightBlue);
 			module.run(client);
+			console.log(`[MODULES] Module ${file} exécuté !`.brightBlue);
+			client.modules[module.name] = module;
+			console.log(`[MODULES] Module ${file} sauvegardé !`.brightGreen);
 		} else {
-			// on sauvegarde le module dans le client
-			client[module.name] = module;
+			client.modules[module.name] = module;
+			console.log(`[MODULES] Module ${file} sauvegardé !`.brightGreen);
 		}
 		console.log(`[MODULES] Module ${file} chargé !`.brightGreen);
+	}
+	// modules in the config file that don't exists in the modules folder
+	for (const key in client.config.modules) {
+		if(!client.modules[key] && !client.disabledmodules.includes(key)) {
+			// delete the module from the config file
+			delete client.config.modules[key];
+			// save the config file
+			fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
+		}
 	}
 
 	// HANDLERS //
@@ -133,11 +253,37 @@ client.once('ready', async () => {
 	}
 
 	// COMMANDS TO DISCORD API //
-	// check the commands in the commands folder
-	const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+	// check the commands in the commands folders
+	
+	let commandFiles = [];
+	// slash commands
+	try{
+		commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+	}catch{}
+	// context menu
+	try{
+		let contextcommandFiles = fs.readdirSync('./contextcommands').filter(file => file.endsWith('.js'));
+		commandFiles = commandFiles.concat(contextcommandFiles);
+	}catch{}
+	// modals commands
+	try{
+		let modalscommandFiles = fs.readdirSync('./modalscommands').filter(file => file.endsWith('.js'));
+		commandFiles = commandFiles.concat(modalscommandFiles);
+	}catch{}
+	// buttons commands
+	try{
+		let buttoncommandFiles =  fs.readdirSync('./buttonscommands').filter(file => file.endsWith('.js'));
+		commandFiles = commandFiles.concat(buttoncommandFiles);
+	}catch{}
+	// select commands
+	try{
+		let selectcommandFiles =  fs.readdirSync('./selectcommands').filter(file => file.endsWith('.js'));
+		commandFiles = commandFiles.concat(selectcommandFiles);
+	}catch{}
 
+	// fetch the commands
 	var commands = await client.application.commands.fetch();
-	console.log(`[INFO] ${commands.size} commandes trouvées !`.brightGreen);
+	console.log(`[INFO] ${commandFiles.length} commandes trouvées !`.brightGreen);
 
 	// remove commands that are 2 times in the commands of the bot
 	console.log(`[INFO] Vérification des commandes en double ou plus...`.brightBlue);
@@ -157,30 +303,41 @@ client.once('ready', async () => {
 	console.log(`[INFO] Chargement des commandes...`.brightBlue);
 	for (const file of commandFiles) {
 		// importation de la commande slash
-		const command = require(`./commands/${file}`);
-
-		// fonction pour rendre compatible les commandes texte avec les commandes slash
-		function textCommandCompatibility(fileName){
-			// Utiliser le module fs pour lire le fichier
-			return fs
-			// Lire le fichier
-			.readFileSync(fileName, 'utf8')
-			// Modifier quelques éléments du code pour qu'il soit compatible avec les commandes slash mais aussi avec les commandes texte
-			.replaceAll('interaction?.message?.interaction', 'interaction.message.interaction').replaceAll('interaction.message.interaction', 'interaction?.message')
-			.replaceAll('interaction?.message?.user', '(await interaction?.message?.channel?.messages.fetch(interaction?.message?.reference?.messageId))?.author');
-			// Retourner le fichier après toutes les modifications
-		}
-		// on transforme la commande texte en commande slash
-		var textcommand = eval(textCommandCompatibility(path.join(__dirname, `./commands/${file}`)));
+		let command;
+		try {
+			command = require(`./commands/${file}`);
+			command.type = 'slash';
+			console.log('[INFO] Commande slash enregistrée !'.brightGreen);
+		} catch (error) {}
+		try {
+			command = require(`./contextcommands/${file}`);
+			command.type = 'contextmenu';
+			console.log('[INFO] Commande contextmenu enregistrée !'.brightGreen);
+		} catch (error) {}
+		try {
+			command = require(`./modalscommands/${file}`);
+			command.type = 'modal';
+			console.log('[INFO] Commande modal enregistrée !'.brightGreen);
+		} catch (error) {}
+		try {
+			command = require(`./buttonscommands/${file}`);
+			command.type = 'button';
+			console.log('[INFO] Commande button enregistrée !'.brightGreen);
+		} catch (error) {}
+		try {
+			command = require(`./selectcommands/${file}`);
+			command.type = 'select';
+			console.log('[INFO] Commande select enregistrée !'.brightGreen);
+		} catch (error) {}
 
 		// on sauvegarde la commande dans le client
 		client.commands.set(command.data.name, command); // slash command
-		client.textcommands.set(textcommand.data.name, textcommand); // text command
+		client.textcommands.set(command.data.name, command); // text command
 
 		// on indique que la commande a été chargée
 		console.log(`[INFO] Commande ${command.data.name} chargée !`.brightGreen);
 	}
-	console.log(`[INFO] ${client.commands.size} commandes chargées !`.brightGreen);
+	console.log(`[INFO] Commandes chargées !`.brightGreen);
 
 	// remove commands from the discord api if they are not in the commands folder
 	console.log(`[INFO] Vérification des commandes slash en trop...`.brightBlue);
@@ -195,7 +352,6 @@ client.once('ready', async () => {
 
 	// register the commands with the discord api
 	client.commands.forEach(async command => {
-		// check if command is global
 		await client.application.commands.create(command.data.toJSON());
 	});
 	console.log('[INFO] Commandes slash enregistrées !'.brightGreen);

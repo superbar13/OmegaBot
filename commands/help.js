@@ -69,6 +69,7 @@ async function createembed(page, numberofpages, firstcommand, lastcommand, comma
         .setTitle('Aide')
         .setDescription('📜 Liste des commandes 📜')
         .setFooter({ text: botname, iconURL: avatar })
+        .setColor(Math.floor(Math.random()*16777215).toString(16))
         .setTimestamp();
 
     // add fields to embed
