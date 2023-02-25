@@ -196,11 +196,11 @@ module.exports = {
                 });
                 // calculate the number of pages
                 const pages = Math.ceil(servers.length / serversperpage);
-                let page = 0;
+                let page = 1;
                 // the embed is only for the servers
                 let embed2 = new EmbedBuilder()
                 .setTitle('🤖 Serveurs')
-                .setDescription(servers.slice(page * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'))
+                .setDescription(servers.slice((page - 1) * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'))
                 .setThumbnail(interaction.client.user.displayAvatarURL())
                 .setColor(Math.floor(Math.random()*16777215).toString(16))
                 .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() })
@@ -208,8 +208,8 @@ module.exports = {
                 // create the message
                 await interaction.editReply({ embeds: [embed, embed2], components: [
                     new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(pages === 1),
-                        new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(pages === 1),
+                        new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(page == 1),
+                        new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(pages == 1)
                     )
                 ] });
                 // create the collector
@@ -220,12 +220,12 @@ module.exports = {
                     if(i.customId === 'previous'){
                         // decrease the page
                         page--;
-                        embed2.setDescription(servers.slice(page * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'));
+                        embed2.setDescription(servers.slice((page - 1) * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'));
                         // edit the message
                         await i.update({ embeds: [embed, embed2], components: [
                             new ActionRowBuilder().addComponents(
-                                new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
-                                new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(page === pages - 1),
+                                new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(page == 1),
+                                new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(page == pages)
                             )
                         ] });
                     }
@@ -233,12 +233,12 @@ module.exports = {
                     else if(i.customId === 'next'){
                         // increase the page
                         page++;
-                        embed2.setDescription(servers.slice(page * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'));
+                        embed2.setDescription(servers.slice((page - 1) * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'));
                         // edit the message
                         await i.update({ embeds: [embed, embed2], components: [
                             new ActionRowBuilder().addComponents(
-                                new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(page === 0),
-                                new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(page === pages - 1),
+                                new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(page == 1),
+                                new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(page == pages)
                             )
                         ] });
                     }

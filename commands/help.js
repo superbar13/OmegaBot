@@ -94,8 +94,8 @@ module.exports = {
                 // edit embed
                 await i.update({ embeds: [embed], components: [
                     new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary)
+                        new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(page == 1),
+                        new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(page == numberofpages)
                     )
                 ] });
             }
@@ -106,8 +106,8 @@ module.exports = {
                 // edit embed
                 await i.update({ embeds: [embed], components: [
                     new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary),
-                        new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary)
+                        new ButtonBuilder().setCustomId('previous').setLabel('Précédent').setStyle(ButtonStyle.Primary).setDisabled(page == 1),
+                        new ButtonBuilder().setCustomId('next').setLabel('Suivant').setStyle(ButtonStyle.Primary).setDisabled(page == numberofpages)
                     )
                 ] });
             }
