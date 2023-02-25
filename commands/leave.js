@@ -27,7 +27,7 @@ module.exports = {
                     try{
                         await interaction.client.serversdb.bulkWrite([
                             interaction.client.bulkutility.setField({
-                                'id': guild.id
+                                'id': interaction.guild.id
                             }, {
                                 'voiceconfig.playing': false,
                                 'voiceconfig.type': 'none'
@@ -43,7 +43,7 @@ module.exports = {
                         try{
                             await interaction.client.serversdb.bulkWrite([
                                 interaction.client.bulkutility.setField({
-                                    'id': guild.id
+                                    'id': interaction.guild.id
                                 }, {
                                     'voiceconfig.playing': false,
                                     'voiceconfig.type': 'none'
