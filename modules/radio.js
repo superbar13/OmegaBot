@@ -19,9 +19,14 @@ module.exports = {
         //////////////////////////////// PLAY THE RADIO ////////////////////////////////
 
         let player = client.players.get(guild.id);
+        let response = client.responses.get(guild.id);
         if(player){
             player.stop();
             client.players.delete(guild.id);
+        }
+        if(response){
+            response.destroy();
+            client.responses.delete(guild.id);
         }
 
         // create a new player
@@ -39,7 +44,7 @@ module.exports = {
         let alreadyplaying = false;
         let streamerror = false;
         async function startplaying() {
-            let response = await fetch(radio.url, {
+            response = await fetch(radio.url, {
                 method: 'GET'
             }).catch(err => {
                 console.log('[ERROR] Cannot fetch the stream'.red);
@@ -71,12 +76,15 @@ module.exports = {
             }
             player.stop();
             client.players.delete(guild.id);
+            response.destroy();
+            client.responses.delete(guild.id);
             return false;
         }
 
         // if the stream is ok
         let errorcount = 0;
         player.on(AudioPlayerStatus.Idle, async () => {
+            if(player !== client.players.get(guild.id)) return;
             if(errorcount >= 5) {
                 console.log(`[ERROR] Too many errors, stopping the radio ${radio.name} on the guild ${guild.name} (${guild.id})`.brightRed);
                 try{
@@ -93,6 +101,8 @@ module.exports = {
                 }
                 player.stop();
                 client.players.delete(guild.id);
+                response.destroy();
+                client.responses.delete(guild.id);
                 // leave the voice channel
                 let connection = getVoiceConnection(guild.id);
                 if(connection) connection.destroy();
@@ -183,6 +193,8 @@ module.exports = {
                     // remove the player
                     player.stop();
                     client.players.delete(guild.id);
+                    response.destroy();
+                    client.responses.delete(guild.id);
                 }
             });
             // ON READY

@@ -93,8 +93,8 @@ module.exports = {
                 { name: '⚡ Système de vérification', value: server?.verificationLevel === 3 ? 'Élevé' : server?.verificationLevel === 2 ? 'Moyen' : server?.verificationLevel === 1 ? 'Faible' : 'Aucun', inline: true },
                 { name: '👁 Système de filtrage', value: server?.explicitContentFilter === 2 ? 'Tout' : server?.explicitContentFilter === 1 ? 'Membres sans rôle' : 'Aucun', inline: true },
                 { name: '⏫ Membres maximum', value: server?.maximumMembers?.toString() || 'Aucun', inline: true },
-                { name: '🌐 Features', value: server?.features.length > 0 ? server?.features.map(f => f.toString()).join(', ') : 'Aucune', inline: false },
                 { name: '📃 Langue', value: server?.preferredLocale.toString(), inline: true },
+                { name: '🌐 Features', value: server?.features.length > 0 ? server?.features.map(f => f.toString()).join(', ') : 'Aucune', inline: false },
             )
             .setColor(Math.floor(Math.random()*16777215).toString(16))
             .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() })
@@ -168,7 +168,7 @@ module.exports = {
                 { name: '📡 Serveurs', value: interaction.client.guilds.cache.size.toString(), inline: true },
                 { name: '📚 Salons', value: interaction.client.channels.cache.size.toString(), inline: true },
                 { name: '👁 Membres', value: interaction.client.users.cache.size.toString(), inline: true },
-                { name: '🚀 Version Discord JS', value: interaction.client.version.toString(), inline: true },
+                { name: '🚀 Version Discord JS', value: interaction.client.discordjsversion.toString(), inline: true },
                 { name: '🧳 Utilisation de la mémoire', value: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2) + ' MB', inline: true },
                 { name: '🚀 Version NodeJs', value: process.version.toString(), inline: true },
                 { name: '⚡ Commandes', value: interaction.client.commands.size.toString(), inline: true },
@@ -220,6 +220,7 @@ module.exports = {
                     if(i.customId === 'previous'){
                         // decrease the page
                         page--;
+                        embed2.setDescription(servers.slice(page * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'));
                         // edit the message
                         await i.update({ embeds: [embed, embed2], components: [
                             new ActionRowBuilder().addComponents(
@@ -232,6 +233,7 @@ module.exports = {
                     else if(i.customId === 'next'){
                         // increase the page
                         page++;
+                        embed2.setDescription(servers.slice(page * serversperpage, page * serversperpage + serversperpage).map(server => `**${server.name}**\n${server.id}`).join('\n\n'));
                         // edit the message
                         await i.update({ embeds: [embed, embed2], components: [
                             new ActionRowBuilder().addComponents(

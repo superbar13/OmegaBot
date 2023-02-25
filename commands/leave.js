@@ -54,9 +54,15 @@ module.exports = {
                         }
                         // get the player from the players map
                         const player = interaction.client.players.get(interaction.guild.id);
+                        const response = interaction.client.responses.get(interaction.guild.id);
                         // stop the player
                         if(player){
                             player.stop();
+                            client.players.delete(interaction.guild.id);
+                        }
+                        if(response){
+                            response.destroy();
+                            interaction.client.responses.delete(interaction.guild.id);
                         }
                     } else {
                         connection.destroy();
@@ -64,11 +70,15 @@ module.exports = {
                         await interaction.editReply('> ✅ La radio a été arrêtée');
                         // get the player from the players map
                         const player = interaction.client.players.get(interaction.guild.id);
+                        const response = interaction.client.responses.get(interaction.guild.id);
                         // stop the player
                         if(player){
                             player.stop();
-                            // delete the player from the players map
                             interaction.client.players.delete(interaction.guild.id);
+                        }
+                        if(response){
+                            response.destroy();
+                            interaction.client.responses.delete(interaction.guild.id);
                         }
                     }
                 } catch (error){

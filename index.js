@@ -53,6 +53,7 @@ const client = new Client({
 
 // version
 client.version = process.env.VERSION;
+client.discordjsversion = require("discord.js/package.json").version;
 
 // prefix
 client.prefix = process.env.PREFIX
@@ -355,11 +356,13 @@ client.once('ready', async () => {
 		await client.application.commands.create(command.data.toJSON());
 	});
 	console.log('[INFO] Commandes slash enregistrées !'.brightGreen);
+
+	client.discordcommands = await client.application.commands.fetch();
 });
 
 // login to Discord with your app's token
 client.login(process.env.TOKEN);
 
 // error handler
-//process.on('unhandledRejection', error => console.error(`[ERROR] Unhandled promise rejection:\n${error}`));
-//process.on('uncaughtException', error => console.error(`[ERROR] Uncaught exception:\n${error}`));
+process.on('unhandledRejection', error => console.error(`[ERROR] Unhandled promise rejection:\n${error}`));
+process.on('uncaughtException', error => console.error(`[ERROR] Uncaught exception:\n${error}`));

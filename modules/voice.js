@@ -2,6 +2,7 @@ module.exports = {
     name: 'voice',
     run: async(client) => {
         client.players = new Map();
+        client.responses = new Map();
         // loop in all servers
         client.guilds.cache.forEach(async guild => {
             // check if the music was playing

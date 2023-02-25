@@ -19,7 +19,7 @@
     "moment": "^2.29.4",
     "mongoose": "^6.8.1",
     "node-fetch": "^2.6.7",
-    "node-internet-radio": "^0.2.1",
+    "node-internet-radio": "github:DELUUXE/node-internet-radio",
     "opusscript": "latest",
     "sodium-native": "^3.4.1"
   }
