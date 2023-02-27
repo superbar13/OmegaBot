@@ -39,7 +39,7 @@ module.exports = {
         .setName('bot')
         .setDescription('Affiche les informations a propos du bot')
     ),
-    category: 'info',
+    category: 'basic',
     async execute(interaction){
         await interaction.deferReply();
         // check which subcommand is used

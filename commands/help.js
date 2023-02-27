@@ -22,6 +22,7 @@ module.exports = {
 
         // get the category option
         let category = interaction.options.getString('category');
+        let page = interaction.options.getNumber('page');
         if(category){
             category = category.toLowerCase().replace(' ', '-');
             showCommands();
@@ -31,9 +32,9 @@ module.exports = {
 
         async function showCategories(){
             // reset command list
-            let commands = new Map();
+            let commands = [];
             commands1.forEach((command, key) => {
-                if(command.type == "slash") commands.set(key, command);
+                if(command.type == "slash") commands.push(command);
             });
             embed = new EmbedBuilder()
                 .setTitle('Catégories de commandes')
@@ -44,24 +45,24 @@ module.exports = {
                 .setTimestamp();
             // add categories to embed
             let categories = [];
-            commands.forEach(command => {
+            for(let command of commands){
                 if(!categories.includes(command.category)) categories.push(command.category);
-            });
-            categories.forEach(category => {
+            }
+            for(let category of categories){
                 let commandscategory = [];
-                commands.forEach(command => {
+                for(let command of commands){
                     if(command.category === category) commandscategory.push(command.data.name);
-                });
+                }
                 embed.addFields({ name: category, value: '```' + commandscategory.join(', ') + '```' });
-            });
+            }
             // add select component to access categories (list)
             let select = new ActionRowBuilder()
             let list = new SelectMenuBuilder()
                 .setCustomId(message.id+'categories')
                 .setPlaceholder('Choisissez une catégorie');
-            categories.forEach(category => {
+            for(let category of categories){
                 list.addOptions({ label: category, value: category.toLowerCase().replace(' ', '-') });
-            });
+            }
             list.addOptions({ label: 'Toutes les catégories', value: 'all' });
             select.addComponents(list);
             // send embed
@@ -69,23 +70,24 @@ module.exports = {
         }
 
         async function showCommands(){
-            let commands = new Map();
+            let commands = [];
             commands1.forEach((command, key) => {
-                if(command.type == "slash") commands.set(key, command);
+                if(command.type == "slash") commands.push(command);
             });
             if(category != "all"){
                 // filter commands by category
-                commands.forEach((command, key) => {
-                    if(command.category.toLowerCase().replace(' ', '-') != category) commands.delete(key);
-                });
-                if(commands.size == 0) return interaction.editReply('> ❌ Cette catégorie n\'existe pas');
+                for(let i = commands.length - 1; i >= 0; i--){
+                    if(commands[i].category != category){
+                        commands.splice(i, 1);
+                    }
+                }
+                if(commands.length == 0) return interaction.editReply('> ❌ Cette catégorie n\'existe pas');
             }
             // calculer a combien de page on a besoin
             let commandsperpage = 24;
-            let numberofpages = Math.ceil(commands.size / commandsperpage);
+            let numberofpages = Math.ceil(commands.length / commandsperpage);
 
             // quelle page on veut afficher
-            let page = interaction.options.getNumber('page');
             if(!page) page = 1;
             if(page > numberofpages) page = numberofpages;
             if(page < 1) page = 1;
@@ -114,23 +116,16 @@ module.exports = {
                 embed.data.fields = [];
                 // add fields to embed
                 for(let i = 0; i < commandsperpage; i++){
-                    // command is a collection map, it is very important to not disturb it with an array because it will not work
-                    let command = null;
-                    for(let [key, value] of commands){
-                        // we want to get the command at the right page
-                        if(i + (page - 1) * commandsperpage == 0){
-                            command = value;
-                            break;
-                        }
-                        i++;
-                    }
+                    // get the command
+                    let command = commands[(page - 1) * commandsperpage + i];
+                    // if there is no command, break
                     if(!command) break;
                     // get command options
                     let commandOptions = command?.data?.options;
                     if(!commandOptions) commandOptions = [];
                     // create a string with all options
                     var options = '';
-                    commandOptions.forEach(option => {
+                    for(let option of commandOptions){
                         if(option.options && option.options.length > 0){
                             // if it is the first
                             if(options == '') options += `> - ${option.name} `;
@@ -161,7 +156,7 @@ module.exports = {
                                 options += `[${option.name}] `;
                             }
                         }
-                    });
+                    }
                     // get the command from discordcommands Collection Map (valueofcollection.name == command name)
                     let discordcommand = discordcommands.reduce((acc, val) => val.name == command?.data?.name ? val : acc, null);
                     embed.addFields({ name: `${discordcommand ? ('</' + discordcommand.name + ':' + discordcommand.id + '>') : ('/'+command?.data?.name)}`, value: `${command?.data?.description}\n${options}`, inline: false });

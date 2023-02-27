@@ -10,7 +10,7 @@ module.exports = {
         .setDescription('Activer/Désactiver la commande adminonly')
         // add options radio required for the command
         .addBooleanOption(option => option.setName('adminonly').setDescription('Activer/Désactiver la commande adminonly').setRequired(true)),
-        category: 'admin',
+        category: 'config',
     async execute(interaction){
         await interaction.deferReply();
         // check if the user is admin
