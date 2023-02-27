@@ -307,7 +307,7 @@ module.exports = {
                             }
                         }
                         let updated = false;
-                        if(stationInfo.headers) {
+                        if(stationInfo?.headers) {
                             if(radio.name == "Radio personnalisée") {
                                 console.log('[INFO] Searching for the radio name and the genres in the headers')
                                 if(stationInfo.headers['icy-name']) {
