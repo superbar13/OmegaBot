@@ -21,7 +21,7 @@ module.exports = {
                         console.log(error);
                     }
                 }
-            } else if (interaction.isSelectMenu()) {
+            } else if (interaction.isStringSelectMenu()) {
                 // SELECT MENU ON MESSAGE
                 // execute the command
                 interaction.client = client;
