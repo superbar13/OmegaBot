@@ -20,14 +20,18 @@ module.exports = {
 
         let player = client.players.get(guild.id);
         let response = client.responses.get(guild.id);
-        if(player){
-            player.stop();
-            client.players.delete(guild.id);
-        }
-        if(response){
-            response.destroy();
-            client.responses.delete(guild.id);
-        }
+        try{
+            if(player){
+                player.stop();
+                client.players.delete(guild.id);
+            }
+        }catch(err){console.log((err).red);}
+        try{
+            if(response){
+                response.destroy();
+                client.responses.delete(guild.id);
+            }
+        }catch(err){console.log((err).red);}
 
         // create a new player
 
@@ -71,13 +75,23 @@ module.exports = {
                         'voiceconfig.type': 'none'
                     })
                 ])
-            }catch(err){
-                console.log((err).red)
-            }
-            player.stop();
-            client.players.delete(guild.id);
-            response.destroy();
-            client.responses.delete(guild.id);
+            }catch(err){console.log((err).red)}
+            try{
+                if(player) {
+                    player.stop();
+                    client.players.delete(guild.id);
+                }
+            }catch(err){console.log((err).red)}
+            try{
+                if(response) {
+                    response.destroy();
+                    client.responses.delete(guild.id);
+                }
+            }catch(err){console.log((err).red)}
+            let connection = getVoiceConnection(guild.id);
+            try{
+                if(connection) connection.destroy();
+            }catch(err){console.log((err).red)}
             return false;
         }
 
@@ -95,17 +109,24 @@ module.exports = {
                             'voiceconfig.playing': false,
                             'voiceconfig.type': 'none'
                         })
-                    ])
-                }catch(err){
-                    console.log((err).red)
-                }
-                player.stop();
-                client.players.delete(guild.id);
-                response.destroy();
-                client.responses.delete(guild.id);
+                    ])}catch(err){console.log((err).red)}
+                try{
+                    if(player) {
+                        player.stop();
+                        client.players.delete(guild.id);
+                    }
+                }catch(err){console.log((err).red)}
+                try{
+                    if(response) {
+                        response.destroy();
+                        client.responses.delete(guild.id);
+                    }
+                }catch(err){console.log((err).red)}
                 // leave the voice channel
                 let connection = getVoiceConnection(guild.id);
-                if(connection) connection.destroy();
+                try{
+                    if(connection) connection.destroy();
+                }catch(err){console.log((err).red)}
                 return false;
             }
             // wait 5 seconds
@@ -154,84 +175,109 @@ module.exports = {
                         'id': guild.id
                     }, {
                         'voiceconfig.playing': true,
-                        'voiceconfig.channelId': connectioninfo.channelId,
-                        'voiceconfig.guildId': connectioninfo.guildId,
                         'voiceconfig.type': 'radio'
                     })
                 ])
-            }catch(err){
-                console.log(err);
-            }
+            }catch(err){console.log(err);}
 
             console.log('[RADIO] Audio player is playing on the server ' + guild.name + ' in the channel ' + connectioninfo.channelId);
             console.log('[RADIO] It is playing the radio ' + radio.name);
 
-            // ON DISCONNECT
-            connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
-                try {
-                    await Promise.race([
-                        entersState(connection, VoiceConnectionStatus.Signalling, 10_000),
-                        entersState(connection, VoiceConnectionStatus.Connecting, 10_000),
-                    ]);
-                    // Seems to be reconnecting to a new channel - ignore disconnect
-                } catch (error) {
-                    // Seems to be a real disconnect which SHOULDN'T be recovered from
-                    connection.destroy();
+            try {
+                // ON DISCONNECT
+                connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+                    try {
+                        await Promise.race([
+                            entersState(connection, VoiceConnectionStatus.Signalling, 10_000),
+                            entersState(connection, VoiceConnectionStatus.Connecting, 10_000),
+                        ]);
+                        // Seems to be reconnecting to a new channel - ignore disconnect
+                    } catch (error) {
+                        // Seems to be a real disconnect which SHOULDN'T be recovered from
+                        connection.destroy();
+                        try{
+                            await client.serversdb.bulkWrite([
+                                client.bulkutility.setField({
+                                    'id': guild.id
+                                }, {
+                                    'voiceconfig.playing': false,
+                                    'voiceconfig.type': 'none'
+                                })
+                            ])
+                        }catch(err){console.log(err);}
+                        console.log(('[RADIO] The bot has been disconnected from the server ' + guild.name).brightBlue);
+                        // remove the player
+                        try{
+                            if(player) {
+                                player.stop();
+                                client.players.delete(guild.id);
+                            }
+                        }catch(err){console.log(err);}
+                        try{
+                            if(response) {
+                                response.destroy();
+                                client.responses.delete(guild.id);
+                            }
+                        }catch(err){console.log(err);}
+                        let connection = getVoiceConnection(guild.id);
+                        try{
+                            if(connection) connection.destroy();
+                        }catch(err){console.log(err);}
+                        return false;
+                    }
+                });
+                // ON READY
+                let alreadyconnected = false;
+                connection.on(VoiceConnectionStatus.Ready, async (oldState, newState) => {
+                    // save that the music is playing
                     try{
                         await client.serversdb.bulkWrite([
                             client.bulkutility.setField({
                                 'id': guild.id
                             }, {
-                                'voiceconfig.playing': false,
-                                'voiceconfig.type': 'none'
+                                'voiceconfig.playing': true,
+                                'voiceconfig.type': 'radio'
                             })
                         ])
-                    }catch(err){
-                        console.log(err);
+                    }catch(err){console.log(err);}
+                    // get channel
+                    console.log(`[RADIO] The bot has been ${alreadyconnected ? 'reconnected' : 'connected'} to the server ${guild.name}`.brightGreen);
+                    alreadyconnected = true;
+                });
+            } catch (error) {
+                console.log(`[RADIO] Error while connecting to the server ${guild.name} due to ${error}`.brightRed);
+                // remove the player
+                try{
+                    if(player) {
+                        player.stop();
+                        client.players.delete(guild.id);
                     }
-                    console.log(('[RADIO] The bot has been disconnected from the server ' + guild.name).brightBlue);
-                    // remove the player
-                    player.stop();
-                    client.players.delete(guild.id);
-                    response.destroy();
-                    client.responses.delete(guild.id);
-                }
-            });
-            // ON READY
-            let alreadyconnected = false;
-            connection.on(VoiceConnectionStatus.Ready, async (oldState, newState) => {
-                // save that the music is playing
+                }catch(err){console.log(err);}
+                try{
+                    if(response) {
+                        response.destroy();
+                        client.responses.delete(guild.id);
+                    }
+                }catch(err){console.log(err);}
+                // leave the voice channel
+                let connection = getVoiceConnection(guild.id);
+                try{
+                    if(connection) connection.destroy();
+                }catch(err){console.log(err);}
+                // update the database
                 try{
                     await client.serversdb.bulkWrite([
                         client.bulkutility.setField({
                             'id': guild.id
                         }, {
-                            'voiceconfig.playing': true,
-                            'voiceconfig.type': 'radio'
+                            'voiceconfig.playing': false,
+                            'voiceconfig.type': 'none'
                         })
                     ])
-                }catch(err){
-                    console.log(err);
-                }
-                // get channel
-                newchannel = connection.joinConfig.channelId;
-                // SAVE CHANNEL
-                // using mongo
-                try{
-                    await client.serversdb.bulkWrite([
-                        client.bulkutility.setField({
-                            'id': guild.id
-                        }, {
-                            'voiceconfig.channelId': newchannel,
-                            'voiceconfig.guildId': guild.id,
-                        })
-                    ])
-                }catch(err){
-                    console.log(err);
-                }
-                console.log(`[RADIO] The bot has been ${alreadyconnected ? 'reconnected' : 'connected'} to the server ${guild.name}`.brightGreen);
-                alreadyconnected = true;
-            });
+                }catch(err){console.log(err);}
+                console.log(`[RADIO] Database updated for this error`.brightRed);
+                return false;
+            }
         }
 
         // subscribe the player to the connection
@@ -246,9 +292,7 @@ module.exports = {
                     'voiceconfig.type': 'radio'
                 })
             ])
-        }catch(err){
-            console.log(err);
-        }
+        }catch(err){console.log(err);}
 
         return true;
 

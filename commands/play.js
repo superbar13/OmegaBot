@@ -64,7 +64,9 @@ module.exports = {
                         interaction.client.bulkutility.setField({
                             'id': interaction.guild.id
                         }, {
-                            'radio': radio
+                            'radio': radio,
+                            'voiceconfig.channelId': interaction.member.voice.channel.id,
+                            'voiceconfig.guildId': interaction.guild.id
                         })
                     ])
                 }catch(err){
@@ -234,7 +236,9 @@ module.exports = {
                                 interaction.client.bulkutility.setField({
                                     'id': interaction.guild.id
                                 }, {
-                                    'radio': radio
+                                    'radio': radio,
+                                    'voiceconfig.channelId': interaction.member.voice.channel.id,
+                                    'voiceconfig.guildId': interaction.guild.id,
                                 })
                             ])
                         }catch(err){

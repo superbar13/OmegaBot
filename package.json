@@ -9,10 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@discordjs/voice": "latest",
+    "@discordjs/voice": "^0.14.0",
     "colors": "^1.4.0",
     "country-code-emoji": "latest",
-    "discord.js": "latest",
+    "discord.js": "^14.7.1",
     "dotenv": "latest",
     "ffmpeg-static": "latest",
     "fs": "latest",
