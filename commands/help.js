@@ -173,6 +173,7 @@ module.exports = {
                 // filter commands by category
                 category = i.values[0];
                 // show commands of the category
+                page = 1;
                 await showCommands();
             }
             // if next button
