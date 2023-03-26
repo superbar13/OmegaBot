@@ -1,7 +1,7 @@
 // ping command module to be used in index.js
 
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SelectMenuBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -57,7 +57,7 @@ module.exports = {
             }
             // add select component to access categories (list)
             let select = new ActionRowBuilder()
-            let list = new SelectMenuBuilder()
+            let list = new StringSelectMenuBuilder()
                 .setCustomId(message.id+'categories')
                 .setPlaceholder('Choisissez une catégorie');
             for(let category of categories){

@@ -62,10 +62,10 @@ client.prefix = process.env.PREFIX
 client.commands = new Map();
 client.textcommands = new Map();
 
-// mongo models on the client
-client.usersdb = require('./models/users.model.js');
-client.serversdb = require('./models/servers.model.js');
-client.interserversdb = require('./models/interservers.model.js');
+// UsersDbAddedValues
+UserDbAddedValues = {};
+// ServersDbAddedValues
+ServerDbAddedValues = {users: [{}]};
 
 // mongo utility bulkutility
 client.bulkutility = require('./utils/BulkUtility.js');
@@ -78,38 +78,11 @@ client.once('ready', async () => {
 	client.embedcolor = "#3EA9E0";
 	client.owner = process.env.OWNER;
 	client.invite = 'https://discord.com/api/oauth2/authorize?client_id='+client.user.id+'&permissions=8&scope=bot%20applications.commands';
-
-	// SERVERS TO DATABASE //
-	// check what servers the bot is in and add them to the database
-	client.guilds.cache.forEach(async (guild) => {
-		// check if the server exists in the database
-		var server = await client.serversdb.findOne({ id: guild.id });
-		if(!server){
-			// create the server document
-			await client.serversdb.createModel({
-				id: guild.id,
-			});
-			console.log(`[DATABASE] Server ${guild.id} added to database`.brightGreen);
-		} else {
-			console.log(`[DATABASE] Server ${guild.id} already in database`.brightBlue);
-		}
-	});
-
-	// check servers in the database and remove them if the bot is not in them
-	var servers = await client.serversdb.find();
-	servers.forEach(async (server) => {
-		// check if the server exists
-		var guild = client.guilds.cache.get(server.id);
-		if(!guild) {
-			// delete the server document
-			await client.serversdb.deleteOne({ id: guild.id });
-			console.log(`[DATABASE] Server ${guild.id} deleted from database`.yellow);
-		}
-	});
-
+	
 	// MODULES //
 	client.modules = new Collection();
 	client.disabledmodules = [];
+	disabledmodulesjs = [];
 	const modulesFiles = fs.readdirSync('./modules').filter(file => file.endsWith('.js'));
 
 	// read a file called config.json for global enabled modules and config
@@ -122,12 +95,13 @@ client.once('ready', async () => {
 		// save the config file
 		fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
 	}
+	console.log('[CONFIG] config.json loaded'.brightGreen);
 	
 	// loop through the modules
 	console.log(`[MODULES] Chargement des modules...`.brightBlue);
 	for (const file of modulesFiles) {
 		// import the module
-		const module = await require(`./modules/${file}`);
+		let module = await require(`./modules/${file}`);
 		module.client = client;
 
 		// check if .modules exists in the config file
@@ -182,12 +156,14 @@ client.once('ready', async () => {
 				}
 			}
 		}
-		console.log(`[MODULES] Module ${file} configuré...`.brightBlue);
+		if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} configuré...`.brightBlue);
 						
 		// check if the module is enabled
 		if(!client.config.modules[module.name]?.enabled && module.name) {
 			console.log(`[MODULES] Module ${file} désactivé !`.yellow);
 			client.disabledmodules.push(module.name);
+			// push the module file name in the disabledmodulesjs array
+			disabledmodulesjs.push(file);
 			continue;
 		}
 		let moduleerror = false;
@@ -204,11 +180,9 @@ client.once('ready', async () => {
 						secondcondition = true;
 					}
 				}
-				console.log(!modulesFiles.includes(dependency), secondcondition);
 				if(!modulesFiles.includes(dependency) || secondcondition) {
 					moduleerror = true;
 					modulesnotfound.push(dependency);
-					console.log(`[MODULES] Module ${module.name} dépend du module ${dependency} qui n'est pas installé ou activé !`.brightRed);
 				}
 			}
 		}
@@ -216,19 +190,71 @@ client.once('ready', async () => {
 			console.log(`[MODULES] Module ${module.name} non chargé !, les modules suivants sont requis : ${modulesnotfound.join(', ')}`.brightRed);
 			client.config.modules[module.name].enabled = false;
 			client.disabledmodules.push(module.name);
+			// push the module file name in the disabledmodulesjs array
+			disabledmodulesjs.push(file);
 			continue;
 		}
-		if(module?.run) {
-			module.run(client);
-			console.log(`[MODULES] Module ${file} exécuté !`.brightBlue);
-			client.modules[module.name] = module;
-			console.log(`[MODULES] Module ${file} sauvegardé !`.brightGreen);
-		} else {
-			client.modules[module.name] = module;
-			console.log(`[MODULES] Module ${file} sauvegardé !`.brightGreen);
+		if(module?.userSchemaAddition) {
+			// there are some fields to add to the user schema
+			// userSchemaAddition is an object with the fields to add
+			// we need to add to Values of client.usersdb
+			for (const key in module.userSchemaAddition) {
+				UserDbAddedValues[key] = module.userSchemaAddition[key];
+				if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} ajouté à la base de données des utilisateurs...`.brightBlue);
+			}
+		}
+		if(module?.guildSchemaAddition) {
+			// there are some fields to add to the guild schema
+			// guildSchemaUsersAddition is an object with the fields to add
+			// we need to add to Values of client.serversdb
+			for (const key in module.guildSchemaAddition) {
+				ServerDbAddedValues[key] = module.guildSchemaAddition[key];
+				if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} ajouté à la base de données des serveurs...`.brightBlue);
+			}
+		}
+		if(module?.guildSchemaUsersAddition) {
+			// the server schema have an array of users for config of the members of the server
+			// schema.users is an array of objects
+			// we need to add to Values of client.serversdb	
+			for (const key in module.guildSchemaUsersAddition) {
+				ServerDbAddedValues.users[0][key] = module.guildSchemaUsersAddition[key];
+				// [0] because we need to add the field to the first object of the array (the only object)
+				// because this is an mongoose array of objects to signify that the array can have multiple objects for each user
+				if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} ajouté à la base de données des serveurs pour les utilisateurs...`.brightBlue);
+			}
 		}
 		console.log(`[MODULES] Module ${file} chargé !`.brightGreen);
 	}
+
+	// mongo models on the client
+	CreateUserDb = require('./models/users.model.js');
+	CreateServerDb = require('./models/servers.model.js');
+	// permit modules to add fields to the user schema (Yeah, I know, it's a bit complicated)
+
+	// client.usersdb = createModel(fields, ID);
+	client.usersdb = await CreateUserDb(UserDbAddedValues, 'user');
+	client.serversdb = await CreateServerDb(ServerDbAddedValues, 'server');
+	// and we can use it like this
+	
+	// run the modules (enabled modules only)
+	for (const file of modulesFiles) {
+		if(disabledmodulesjs.includes(file)) continue;
+		const module = require(`./modules/${file}`);
+		module.client = client;
+		if(module?.run) {
+			module.run(client);
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} exécuté !`.brightBlue);
+			client.modules[module.name] = module;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} sauvegardé !`.brightGreen);
+		} else {
+			client.modules[module.name] = module;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} sauvegardé !`.brightGreen);
+		}
+		console.log(`[MODULES] Module ${file} exécuté !`.brightGreen);
+	}
+
+	console.log(`[MODULES] ${modulesFiles.length - client.disabledmodules.length} modules chargés !`.brightGreen);
+	console.log(`[MODULES] ${client.disabledmodules.length} modules désactivés !`.brightYellow);
 	// modules in the config file that don't exists in the modules folder
 	for (const key in client.config.modules) {
 		if(!client.modules[key] && !client.disabledmodules.includes(key)) {
@@ -239,6 +265,95 @@ client.once('ready', async () => {
 		}
 	}
 
+	// SERVERS TO DATABASE //
+	// check what servers the bot is in and add them to the database
+	let nbServersAdded = 0;
+	let nbServersAlreadyInDatabase = 0;
+	client.guilds.cache.forEach(async (guild) => {
+		// check if the server exists in the database
+		var server = await client.serversdb.findOne({ id: guild.id });
+		if(!server){
+			// create the server document
+			await client.serversdb.createModel({
+				id: guild.id,
+			});
+			nbServersAdded++;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] Server ${guild.id} added to database`.brightGreen);
+		} else {
+			nbServersAlreadyInDatabase++;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] Server ${guild.id} already in database`.brightBlue);
+		}
+	});
+	console.log(`[DATABASE] ${nbServersAdded} servers added to database, ${nbServersAlreadyInDatabase} servers already in database`.brightGreen);
+
+	// check servers in the database and remove them if the bot is not in them
+	let nbServersRemoved = 0;
+	var servers = await client.serversdb.find();
+	servers.forEach(async (server) => {
+		// check if the server exists
+		var guild = client.guilds.cache.get(server.id);
+		if(!guild) {
+			// delete the server document
+			await client.serversdb.deleteOne({ id: guild.id });
+			nbServersRemoved++;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] Server ${guild.id} deleted from database`.yellow);
+		}
+	});
+	console.log(`[DATABASE] ${nbServersRemoved} servers removed from database`.yellow);
+
+	// USERS TO DATABASE //
+	// check what users the bot is in and add them to the database
+	let nbUsersAdded = 0;
+	let nbUsersAlreadyInDatabase = 0;
+	client.users.cache.forEach(async (user) => {
+		// if the user is a bot, skip
+		if(user.bot) return;
+		// check if the user exists in the database
+		var userdb = await client.usersdb.findOne({ id: user.id });
+		if(!userdb){
+			// create the user document
+			await client.usersdb.createModel({
+				id: user.id,
+			});
+			nbUsersAdded++;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User ${user.id} added to database`.brightGreen);
+		} else {
+			nbUsersAlreadyInDatabase++;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User ${user.id} already in database`.brightBlue);
+		}
+	});
+	console.log(`[DATABASE] ${nbUsersAdded} users added to database, ${nbUsersAlreadyInDatabase} users already in database`.brightGreen);
+
+	// check users in the database and remove them if the bot is not in them
+	let nbUsersRemoved = 0;
+	var users = await client.usersdb.find();
+	users.forEach(async (user) => {
+		// check if the user exists
+		var user1 = client.users.cache.get(user.id);
+		if(!user1) {
+			nbUsersRemoved++;
+			// delete the user document
+			await client.usersdb.deleteOne({ id: user.id });
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User ${user.id} deleted from database`.yellow);
+		}
+	});
+	console.log(`[DATABASE] ${nbUsersRemoved} users removed from database`.yellow);
+
+	// remove bots from the database
+	let nbBotsRemoved = 0;
+	var users = await client.usersdb.find();
+	users.forEach(async (user) => {
+		// check if the user exists
+		var user1 = client.users.cache.get(user.id);
+		if(user1.bot) {
+			nbBotsRemoved++;
+			// delete the user document
+			await client.usersdb.deleteOne({ id: user.id });
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User bot ${user.id} deleted from database`.yellow);
+		}
+	});
+	console.log(`[DATABASE] ${nbBotsRemoved} bots users removed from database`.yellow);
+
 	// HANDLERS //
 	const handlersFiles = fs.readdirSync('./handlers').filter(file => file.endsWith('.js'));
 	console.log(`[HANDLERS] Chargement des handlers...`.brightBlue);
@@ -248,7 +363,7 @@ client.once('ready', async () => {
 		handler.client = client;
 		if(handler?.run) {
 			handler.run(client);
-			console.log(`[HANDLERS] Exécution du handler ${file}...`.brightBlue);
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[HANDLERS] Exécution du handler ${file}...`.brightBlue);
 		}
 		console.log(`[HANDLERS] Handler ${file} chargé !`.brightGreen);
 	}
@@ -308,48 +423,48 @@ client.once('ready', async () => {
 		try {
 			command = require(`./commands/${file}`);
 			command.type = 'slash';
-			console.log('[INFO] Commande slash enregistrée !'.brightGreen);
+			console.log(`[INFO] Commande ${command.data.name} slash chargée !`.brightGreen);
 		} catch (error) {}
 		try {
 			command = require(`./contextcommands/${file}`);
 			command.type = 'contextmenu';
-			console.log('[INFO] Commande contextmenu enregistrée !'.brightGreen);
+			console.log(`[INFO] Commande ${command.data.name} contextmenu chargée !`.brightGreen);
 		} catch (error) {}
 		try {
 			command = require(`./modalscommands/${file}`);
 			command.type = 'modal';
-			console.log('[INFO] Commande modal enregistrée !'.brightGreen);
+			console.log(`[INFO] Commande ${command.data.name} modal chargée !`.brightGreen);
 		} catch (error) {}
 		try {
 			command = require(`./buttonscommands/${file}`);
 			command.type = 'button';
-			console.log('[INFO] Commande button enregistrée !'.brightGreen);
+			console.log(`[INFO] Commande ${command.data.name} button chargée !`.brightGreen);
 		} catch (error) {}
 		try {
 			command = require(`./selectcommands/${file}`);
 			command.type = 'select';
-			console.log('[INFO] Commande select enregistrée !'.brightGreen);
+			console.log(`[INFO] Commande ${command.data.name} select chargée !`.brightGreen);
 		} catch (error) {}
 
 		// on sauvegarde la commande dans le client
 		client.commands.set(command.data.name, command); // slash command
 		client.textcommands.set(command.data.name, command); // text command
-
-		// on indique que la commande a été chargée
-		console.log(`[INFO] Commande ${command.data.name} chargée !`.brightGreen);
 	}
-	console.log(`[INFO] Commandes chargées !`.brightGreen);
+	console.log(`[INFO] ${client.commands.size} commandes chargées !`.brightGreen);
 
 	// remove commands from the discord api if they are not in the commands folder
+	let nbCommandsDeleted = 0;
 	console.log(`[INFO] Vérification des commandes slash en trop...`.brightBlue);
 	commands.forEach(async command => {
 		// check if the command exists in the commands folder
 		if(!client.commands.has(command.name)){
 			// delete the command
 			await client.application.commands.delete(command.id);
-			console.log(`[INFO] Commande slash ${command.name} supprimée !`.yellow);
+			nbCommandsDeleted++;
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[INFO] Commande slash ${command.name} supprimée !`.yellow);
 		}
 	});
+	console.log(`[INFO] ${nbCommandsDeleted} commandes slash supprimées !`.brightGreen);
 
 	// register the commands with the discord api
 	client.commands.forEach(async command => {
@@ -364,5 +479,5 @@ client.once('ready', async () => {
 client.login(process.env.TOKEN);
 
 // error handler
-process.on('unhandledRejection', error => console.error(`[ERROR] Unhandled promise rejection:\n${error}`));
-process.on('uncaughtException', error => console.error(`[ERROR] Uncaught exception:\n${error}`));
+//process.on('unhandledRejection', error => console.error(`[ERROR] Unhandled promise rejection:\n${error}`));
+//process.on('uncaughtException', error => console.error(`[ERROR] Uncaught exception:\n${error}`));

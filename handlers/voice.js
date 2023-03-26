@@ -21,12 +21,12 @@ module.exports = {
             if(config.voiceconfig.type == 'radio') {
                 if(!client.config.modules['radio'].enabled) return console.log('[VOICE] Radio module disabled, skipping...'.brightBlue);
                 console.log(('[VOICE] Radio was playing on '+newState.guild.name).brightBlue);
-                client.modules.radio.radioLoad(newState.guild,config,client);
+                client.modules.radio.radioLoad(newState.guild,config);
             } else if(config.voiceconfig.type == 'music') {
                 console.log(('[VOICE] Music was playing on '+newState.guild.name).brightBlue);
                 console.log('[VOICE] Not implemented yet !'.yellow);
             } else {
-                console.log('[VOICE] Unknown type of music, skipping on '+newState.guild.name+' ...'.brightBlue);
+                console.log(('[VOICE] Unknown type of music, skipping on '+newState.guild.name+' ...').brightBlue);
             }
         });
     }

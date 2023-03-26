@@ -1,6 +1,6 @@
 // ping command module to be used in index.js
 
-const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
+const { StringSelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
 const { EmbedBuilder } = require('discord.js');
 const { VoiceConnectionStatus, getVoiceConnection, demuxProbe, joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, StreamType } = require('@discordjs/voice');
 const fetch = require('node-fetch');
@@ -135,7 +135,7 @@ module.exports = {
                     });
 
                     // create a list of radios to choose from
-                    compoment = new SelectMenuBuilder()
+                    compoment = new StringSelectMenuBuilder()
                         .setCustomId('select')
                         .setPlaceholder('Clique ici pour choisir !');
                     
@@ -262,7 +262,7 @@ module.exports = {
             }
 
             //////////////////////////////// PLAY THE RADIO ////////////////////////////////
-            let playing = interaction.client.modules.radio.radioLoad(interaction.guild, info, interaction.client);
+            let playing = interaction.client.modules.radio.radioLoad(interaction.guild, info);
             if(!playing){
                 if(interaction) await interaction.editReply('> ❌ Une erreur est survenue lors de la lecture de la radio ' + radio.name);
             }
@@ -385,19 +385,18 @@ module.exports = {
                             // search the cover of the song
                             // `https://musicbrainz.org/ws/2/recording/?query=recording:"${radio1.title}"%20AND%20artist:"${radio1.artist}"%20AND%20status:official&fmt=json&limit=1`
                             // with headers : { 'User-Agent': 'OmegaBot/5.0' }
-                            let id = false;
+                            let ids = [];
                             try{
                                 console.log('[INFO] Searching for the cover of the song on the radio ' + radio.name)
-                                const response = await fetch(`https://musicbrainz.org/ws/2/recording/?query=recording:"${radio1.title}"%20AND%20artist:"${radio1.artist}"%20AND%20status:official&fmt=json&limit=1`, { headers: { 'User-Agent': 'OmegaBot/5.0' } });
+                                const response = await fetch(`https://musicbrainz.org/ws/2/recording/?query=recording:"${radio1.title}"%20AND%20artist:"${radio1.artist}"%20AND%20status:official&fmt=json`, { headers: { 'User-Agent': 'OmegaBot/5.0' } });
                                 const data = await response.json();
                                 if(data?.recordings?.length > 0){
-                                    const recording = data.recordings[0];
-                                    if(recording?.releases?.length > 0){
-                                        for(const release of recording.releases){
-                                            if(release?.title == recording.title){
-                                                id = release.id;
-                                                console.log('[INFO] ID of the song found on the radio ' + radio.name);
-                                                break;
+                                    for(const recording of data?.recordings){
+                                        if(recording?.releases?.length > 0){
+                                            for(const release of recording.releases){
+                                                if(release?.title == recording.title){
+                                                    ids.push(release.id);
+                                                }
                                             }
                                         }
                                     }
@@ -407,25 +406,30 @@ module.exports = {
                                 console.log(error)
                                 console.log('--------------------------------')
                             }
+                            if(ids.length > 0) console.log('[INFO] Found ' + ids.length + ' id(s) to get the cover of the song on the radio ' + radio.name)
+                            else console.log('[INFO] No id found to get the cover of the song on the radio ' + radio.name);
                             let cover = false;
-                            if(id){
-                                try{
-                                    console.log('[INFO] Searching for the cover of the song on the radio ' + radio.name)
-                                    // https://coverartarchive.org/release/${id}
-                                    const response = await fetch(`https://coverartarchive.org/release/${id}`);
-                                    const data = await response.json();
-                                    if(data?.images?.length > 0){
-                                        const image = data.images[0];
-                                        if(image?.thumbnails?.large){
-                                            cover = image.thumbnails.large;
-                                        } else if(image?.thumbnails?.small){
-                                            cover = image.thumbnails.small;
+                            if(ids.length > 0){
+                                for(const id of ids){
+                                    try{
+                                        console.log('[INFO] Searching for the cover of the song on the radio ' + radio.name)
+                                        // https://coverartarchive.org/release/${id}
+                                        const response = await fetch(`https://coverartarchive.org/release/${id}`);
+                                        const data = await response.json();
+                                        if(data?.images?.length > 0){
+                                            const image = data.images[0];
+                                            if(image?.thumbnails?.large){
+                                                cover = image.thumbnails.large;
+                                            } else if(image?.thumbnails?.small){
+                                                cover = image.thumbnails.small;
+                                            }
                                         }
+                                    } catch (error){
+                                        console.log('[ERROR] Impossible to get the cover of the song on the radio ' + radio.name)
+                                        console.log(error)
+                                        console.log('--------------------------------')
                                     }
-                                } catch (error){
-                                    console.log('[ERROR] Impossible to get the cover of the song on the radio ' + radio.name)
-                                    console.log(error)
-                                    console.log('--------------------------------')
+                                    if(cover) break;
                                 }
                             }
                             if(cover){

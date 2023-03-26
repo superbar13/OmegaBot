@@ -85,6 +85,16 @@ module.exports = {
                         console.log(`[MODAL] Modal ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
                     } catch (error) {}
                 }
+            } else if (interaction.isAutocomplete()) {
+                // AUTOCOMPLETE ON MESSAGE
+                // execute the command
+                interaction.client = client;
+                if(!client.commands.get(interaction.commandName)) return;
+                
+                try {
+                    client.commands.get(interaction.commandName).autocomplete(interaction);
+                    // console.log(`[AUTOCOMPLETE] Autocomplete ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                } catch (error) {}
             }
         })
     }

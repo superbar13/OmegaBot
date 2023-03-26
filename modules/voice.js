@@ -1,5 +1,50 @@
 module.exports = {
     name: 'voice',
+    showname: 'Voice',
+    guildconfig: {
+        voiceconfig: {
+            displayname: 'Voice',
+            description: 'Voice module configuration',
+            type: 'databasecategory',
+            showed: true,
+            childs: {
+                adminonly: {
+                    displayname: 'Admin only',
+                    description: 'Only admins can use the voice commands',
+                    type: 'boolean',
+                },
+            },
+        },
+    },
+    guildSchemaAddition: {
+        voiceconfig: {
+            guildId: {
+                type: String,
+                required: false
+            },
+            channelId : {
+                type: String,
+                required: false
+            },
+            volume: {
+                type: Number,
+                required: false
+            },
+            adminonly: {
+                type: Boolean,
+                default: false
+            },
+            playing: {
+                type: Boolean,
+                default: false
+            },
+            type: {
+                // radio or music
+                type: String,
+                default: "none"
+            },
+        },
+    },
     run: async(client) => {
         client.players = new Map();
         client.responses = new Map();
@@ -7,9 +52,8 @@ module.exports = {
         client.guilds.cache.forEach(async guild => {
             // check if the music was playing
             var info = await client.serversdb.findOne({ id: guild.id }).select('music radio voiceconfig');
-
-            console.log(('[VOICE] Checking if music was playing on '+guild.name).brightBlue);
-            if(!info?.voiceconfig?.playing) return console.log('[VOICE] La musique n\'est pas en train de jouer, je ne fais rien sur le serveur '+guild.name+ ' !'.brightBlue);
+            
+            if(!info?.voiceconfig?.playing) return;
             
             if(info?.voiceconfig?.type == 'music') {
                 console.log(('[VOICE] Music was playing on '+guild.name).brightBlue);
@@ -17,9 +61,9 @@ module.exports = {
             } else if(info?.voiceconfig?.type == 'radio') {
                 if(!client.config.modules['radio'].enabled) return console.log('[VOICE] Radio module disabled, skipping...'.brightBlue);
                 console.log(('[VOICE] Radio was playing on '+guild.name).brightBlue);  
-                client.modules.radio.radioLoad(guild, info, client);
+                client.modules.radio.radioLoad(guild, info);
             } else {
-                console.log('[VOICE] Unknown type of music, skipping on '+guild.name+' ...'.brightBlue);
+                console.log(('[VOICE] Unknown type of music, skipping on '+guild.name+' ...').brightBlue);
             }
         });
     }

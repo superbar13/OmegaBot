@@ -4,39 +4,34 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const userSchema = new Schema({
+const createModel = async (fields, modelName) => {
+  const schemaFields = {
+    ...fields,
     id: {
         type: String,
         required: true,
         unique: true
-    },
-    username: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    discriminator: {
-        type: String,
-        required: true,
-        unique: true
     }
-});
+  };
 
-userSchema.statics.createModel = async function (object) {
-    const user = new User({
-        id: object.id,
-        username: object.username,
-        discriminator: object.discriminator
+  const schema = new Schema(schemaFields);
+
+  schema.statics.createModel = async function (object) {
+    const model = new this({
+      id: object.id,
     });
-    return await user.save();
-}
+    return await model.save();
+  };
 
-userSchema.statics.ping = async function () {
-    let time = Date.now();
-    await User.findOne({ id: "1" });
-    return Date.now() - time;    
-}
+  schema.statics.ping = async function () {
+    const start = Date.now();
+    await this.findOne({ id: "1" });
+    return Date.now() - start;    
+  };
 
-const User = mongoose.model('user', userSchema);
+  const Model = mongoose.model(modelName, schema);
 
-module.exports = User;
+  return Model;
+};
+
+module.exports = createModel;

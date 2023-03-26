@@ -4,6 +4,7 @@ const { ActivityType } = require('discord.js');
 
 module.exports = {
     name: 'radio',
+    showname: 'Radio',
     addedconfig: {
         status: {
             enabled: true,
@@ -11,8 +12,58 @@ module.exports = {
             type: ActivityType.Listening,
         }
     },
+    guildSchemaAddition: {
+        radio: {
+            name: {
+                type: String,
+                required: false
+            },
+            url: {
+                type: String,
+                required: false
+            },
+            website: {
+                type: String,
+                required: false
+            },
+            logo: {
+                type: String,
+                required: false
+            },
+            country: {
+                type: String,
+                required: false
+            },
+            state: {
+                type: String,
+                required: false
+            },
+            language: {
+                type: String,
+                required: false
+            },
+            votes: {
+                type: Number,
+                required: false
+            },
+            genres: {
+                type: String,
+                required: false
+            },
+            id: {
+                type: String,
+                required: false
+            },
+            description: {
+                type: String,
+                required: false
+            },
+        },
+    },
     dependencies: ['voice.js'],
-    async radioLoad(guild,info,client) {
+    async radioLoad(guild,info) {
+        client = module.exports.client;
+
         // get the radio
         var radio = info.radio;
 

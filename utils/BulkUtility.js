@@ -46,6 +46,17 @@ module.exports = {
         }
     },
 
+    unsetField: (filter, update) => {
+        return {
+            updateMany: {
+                filter: filter,
+                update: {
+                    $unset: update
+                }
+            }
+        }
+    },
+
     pullInArray: (filter, update) => {
         return {
             updateMany: {

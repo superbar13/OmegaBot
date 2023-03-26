@@ -175,7 +175,11 @@ module.exports = {
                 }
             } else {
                 // Si il n'y a pas de ";" dans les arguments, on les met dans un tableau
-                args = [args]
+                if(args.includes(' ')) {
+                    args = args.split(' ')
+                } else {
+                    args = [args]
+                }
             }
 
             // Obtenir le contenu d'un argument par son nom
@@ -389,7 +393,7 @@ module.exports = {
             // Exécuter la commande
             try {
                 await client.textcommands.get(commandName).execute(message);
-                console.log(`[MESSAGE] Commande ${commandName} exécutée avec succès par ${message.author.username} (${message.author.id} sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id})`.brightGreen);
+                console.log(`[MESSAGE] Commande ${commandName} exécutée avec succès par ${message.author.username} (${message.author.id}) sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id})`.brightGreen);
             } catch (error){
                 message.reply({ embeds: [new EmbedBuilder().setTitle("Une erreur est survenue").setDescription("Une erreur est survenue lors de l'exécution de la commande, veuillez contacter un administrateur.").setColor("#ff0000")] });
                 console.log(`[ERROR] Commande ${commandName} exécutée par ${message.author.username} (${message.author.id} sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id}) a échoué`.brightRed);
