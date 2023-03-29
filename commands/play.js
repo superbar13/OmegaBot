@@ -464,7 +464,7 @@ module.exports = {
                             }
                         }
                     }
-                }, internetradio.StreamSource.STREAM );
+                });
             } catch (error){
                 console.log('[INFO] Impossible to get the title and the artist of the song on the radio ' + radio.name)
                 console.log(error)
