@@ -479,5 +479,5 @@ client.once('ready', async () => {
 client.login(process.env.TOKEN);
 
 // error handler
-//process.on('unhandledRejection', error => console.error(`[ERROR] Unhandled promise rejection:\n${error}`));
-//process.on('uncaughtException', error => console.error(`[ERROR] Uncaught exception:\n${error}`));
+process.on('unhandledRejection', error => console.error(`[ERROR] Unhandled promise rejection:\n${error}`));
+process.on('uncaughtException', error => console.error(`[ERROR] Uncaught exception:\n${error}`));

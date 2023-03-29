@@ -364,6 +364,26 @@ module.exports = {
                                     console.log(err);
                                 }
                             }
+                            if(radio?.website == radio?.url) {
+                                if(stationInfo.headers['icy-url']) {
+                                    radio.website = stationInfo.headers['icy-url'];
+                                    if(!radio.website.startsWith('http') && !radio.website.startsWith('https')) radio.website = 'http://' + radio.website;
+                                    console.log(`[INFO] Found the radio website : ${radio.website}`)
+                                    embed.setDescription(`Radio Lancée !\n[[🎵 Flux](${radio.url})] | [[📻 Site web](${radio.website})]${radio?.description ? ' | ' + radio.description : ''}`);
+                                    updated = true;
+                                    try{
+                                        await interaction.client.serversdb.bulkWrite([
+                                            interaction.client.bulkutility.setField({
+                                                'id': interaction.guild.id
+                                            }, {
+                                                'radio.website': radio.website
+                                            })
+                                        ])
+                                    }catch(err){
+                                        console.log(err);
+                                    }
+                                }
+                            }
                         }
                         if((!radio1?.title || radio1?.title?.length == 0) && (!radio1?.artist || radio1?.artist?.length == 0)) {
                             console.log('[INFO] Impossible to get the title and the artist of the song on the radio ' + radio.name)
@@ -444,7 +464,7 @@ module.exports = {
                             }
                         }
                     }
-                });
+                }, internetradio.StreamSource.STREAM );
             } catch (error){
                 console.log('[INFO] Impossible to get the title and the artist of the song on the radio ' + radio.name)
                 console.log(error)
