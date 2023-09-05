@@ -15,8 +15,8 @@ module.exports = {
         // when the bot join a server
         client.on('guildCreate', async guild => {
             // The bot will send an message in channels configured in the config.json
-            if(client.config.modules['JoinLeaveMessage'].joinmessage.enabled && client.config.modules['JoinLeaveMessage'].joinmessage.onJoin){
-                client.config.modules['JoinLeaveMessage'].joinmessage.channelsIDS.forEach(async channelID => {
+            if(client.config.modules['JoinLeaveMessage'].addedconfig.joinmessage.enabled){
+                client.config.modules['JoinLeaveMessage'].addedconfig.joinmessage.channelsIDS.forEach(async channelID => {
                     var channel = client.channels.cache.get(channelID);
                     if(!channel) return;
                     // create the embed
@@ -41,8 +41,8 @@ module.exports = {
         // when the bot leave a server
         client.on('guildDelete', async guild => {
             // The bot will send an message in channels configured in the config.json
-            if(client.config.modules['JoinLeaveMessage'].leavemessage.enabled && client.config.modules['JoinLeaveMessage'].leavemessage.onLeave){
-                client.config.modules['JoinLeaveMessage'].leavemessage.channelsIDS.forEach(async channelID => {
+            if(client.config.modules['JoinLeaveMessage'].addedconfig.leavemessage.enabled){
+                client.config.modules['JoinLeaveMessage'].addedconfig.leavemessage.channelsIDS.forEach(async channelID => {
                     var channel = client.channels.cache.get(channelID);
                     if(!channel) return;
                     // create the embed

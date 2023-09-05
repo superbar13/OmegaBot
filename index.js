@@ -1,3 +1,5 @@
+process.setMaxListeners(1000);
+
 const { Client, GatewayIntentBits, PermissionsBitField, Partials, EmbedBuilder, Routes, Collection } = require('discord.js');
 
 const fs = require('fs');
@@ -33,18 +35,30 @@ conn.once('open', function () {
 const client = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.DirectMessages,
-		GatewayIntentBits.GuildPresences,
 		GatewayIntentBits.GuildMembers,
+		// GatewayIntentBits.GuildModeration,
+		// GatewayIntentBits.GuildEmojisAndStickers,
+		// GatewayIntentBits.GuildIntegrations,
+		// GatewayIntentBits.GuildWebhooks,
+		// GatewayIntentBits.GuildInvites,
+		GatewayIntentBits.GuildVoiceStates,
+		GatewayIntentBits.GuildPresences,
+		GatewayIntentBits.GuildMessages,
+		// GatewayIntentBits.GuildMessageReactions,
+		GatewayIntentBits.GuildMessageTyping,
+		GatewayIntentBits.DirectMessages,
+		// GatewayIntentBits.DirectMessageReactions,
+		// GatewayIntentBits.DirectMessageTyping,
 		GatewayIntentBits.MessageContent,
-		GatewayIntentBits.GuildVoiceStates
+		// GatewayIntentBits.GuildScheduledEvents,
+		// GatewayIntentBits.AutoModerationConfiguration,
+		// GatewayIntentBits.AutoModerationExecution
 	],
 	partials: [
 		Partials.User,
 		Partials.Channel,
 		Partials.GuildMember,
-		Partials.Message,
+		//Partials.Message,
 		Partials.Reaction,
 		Partials.GuildScheduledEvent,
 		Partials.ThreadMember
@@ -54,6 +68,7 @@ const client = new Client({
 // version
 client.version = process.env.VERSION;
 client.discordjsversion = require("discord.js/package.json").version;
+client.telegrafversion = JSON.parse(fs.readFileSync(path.join(__dirname, 'node_modules', 'telegraf', 'package.json'))).version;
 
 // prefix
 client.prefix = process.env.PREFIX
@@ -79,6 +94,11 @@ client.once('ready', async () => {
 	client.owner = process.env.OWNER;
 	client.invite = 'https://discord.com/api/oauth2/authorize?client_id='+client.user.id+'&permissions=8&scope=bot%20applications.commands';
 	
+	client.diezel = require('diezel');
+	let keys = JSON.parse(fs.readFileSync('keys.json'));
+	client.diezel.setKeys(keys);
+	client.diezelClient = new client.diezel.clients.MobileClient();
+
 	// MODULES //
 	client.modules = new Collection();
 	client.disabledmodules = [];
@@ -136,13 +156,6 @@ client.once('ready', async () => {
 						// save the config file
 						fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
 					} else {
-						// check if the addedconfig is different in the config file
-						if(JSON.stringify(module.addedconfig) !== JSON.stringify(client.config.modules[module.name].addedconfig)) {
-							// but keep old configuration values for existing keys and add new keys
-							client.config.modules[module.name].addedconfig = Object.assign(module.addedconfig, client.config.modules[module.name].addedconfig);
-							// save the config file
-							fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
-						}
 						// check if there are keys in the config file that don't exists in the module
 						for (const key in client.config.modules[module.name].addedconfig) {
 							if(!module.addedconfig[key]) {
@@ -151,6 +164,13 @@ client.once('ready', async () => {
 								// save the config file
 								fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
 							}
+						}
+						// check if the addedconfig is different in the config file
+						if(JSON.stringify(module.addedconfig) !== JSON.stringify(client.config.modules[module.name].addedconfig)) {
+							// but keep old configuration values for existing keys and add new keys
+							client.config.modules[module.name].addedconfig = Object.assign(module.addedconfig, client.config.modules[module.name].addedconfig);
+							// save the config file
+							fs.writeFileSync('./config.json', JSON.stringify(client.config, null, 4));
 						}
 					}
 				}
@@ -286,20 +306,22 @@ client.once('ready', async () => {
 	});
 	console.log(`[DATABASE] ${nbServersAdded} servers added to database, ${nbServersAlreadyInDatabase} servers already in database`.brightGreen);
 
-	// check servers in the database and remove them if the bot is not in them
-	let nbServersRemoved = 0;
-	var servers = await client.serversdb.find();
-	servers.forEach(async (server) => {
-		// check if the server exists
-		var guild = client.guilds.cache.get(server.id);
-		if(!guild) {
-			// delete the server document
-			await client.serversdb.deleteOne({ id: guild.id });
-			nbServersRemoved++;
-			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] Server ${guild.id} deleted from database`.yellow);
-		}
-	});
-	console.log(`[DATABASE] ${nbServersRemoved} servers removed from database`.yellow);
+	if(process.env.REMOVE_OLD_SERVERS == "true") {
+		// check servers in the database and remove them if the bot is not in them
+		let nbServersRemoved = 0;
+		var servers = await client.serversdb.find();
+		servers.forEach(async (server) => {
+			// check if the server exists
+			var guild = client.guilds.cache.get(server.id);
+			if(!guild) {
+				// delete the server document
+				await client.serversdb.deleteOne({ id: guild.id });
+				nbServersRemoved++;
+				if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] Server ${guild.id} deleted from database`.yellow);
+			}
+		});
+		console.log(`[DATABASE] ${nbServersRemoved} servers removed from database`.yellow);
+	} else console.log(`[DATABASE] Remove old servers disabled`.brightYellow);
 
 	// USERS TO DATABASE //
 	// check what users the bot is in and add them to the database
@@ -324,20 +346,44 @@ client.once('ready', async () => {
 	});
 	console.log(`[DATABASE] ${nbUsersAdded} users added to database, ${nbUsersAlreadyInDatabase} users already in database`.brightGreen);
 
-	// check users in the database and remove them if the bot is not in them
-	let nbUsersRemoved = 0;
-	var users = await client.usersdb.find();
-	users.forEach(async (user) => {
-		// check if the user exists
-		var user1 = client.users.cache.get(user.id);
-		if(!user1) {
-			nbUsersRemoved++;
-			// delete the user document
-			await client.usersdb.deleteOne({ id: user.id });
-			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User ${user.id} deleted from database`.yellow);
-		}
-	});
-	console.log(`[DATABASE] ${nbUsersRemoved} users removed from database`.yellow);
+	if(process.env.REMOVE_OLD_USERS == "true") {
+		// check users in the database and remove them if their are not in a server where the bot is
+		let nbUsersRemoved = 0;
+		var users = await client.usersdb.find();
+		users.forEach(async (user) => {
+			// check if the user exists
+			var user1 = client.users.cache.get(user.id);
+			if(!user1) {
+				nbUsersRemoved++;
+				// delete the user document
+				await client.usersdb.deleteOne({ id: user.id });
+				if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User ${user.id} deleted from database`.yellow);
+			}
+		});
+		console.log(`[DATABASE] ${nbUsersRemoved} users removed from database`.yellow);
+
+		// remove users from servers .users array with their .id
+		// only if the user is not in a server where the bot is
+		let nbUsersRemovedFromServers = 0;
+		var servers = await client.serversdb.find();
+		servers.forEach(async (server) => {
+			// check if the server exists
+			var guild = client.guilds.cache.get(server.id);
+			if(!guild) return;
+			// loop through the users of the server
+			for (const user of server.users) {
+				// check if the user exists
+				var user1 = client.users.cache.get(user.id);
+				if(!user1) {
+					// delete the user from the server document
+					await client.serversdb.updateOne({ id: guild.id }, { $pull: { users: { id: user.id } } });
+					nbUsersRemovedFromServers++;
+					if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User ${user.id} removed from server ${guild.id} in database`.yellow);
+				}
+			}
+		});
+		console.log(`[DATABASE] ${nbUsersRemovedFromServers} users removed from servers in database`.yellow);
+	} else console.log(`[DATABASE] Remove old users disabled`.brightYellow);
 
 	// remove bots from the database
 	let nbBotsRemoved = 0;
@@ -345,6 +391,7 @@ client.once('ready', async () => {
 	users.forEach(async (user) => {
 		// check if the user exists
 		var user1 = client.users.cache.get(user.id);
+		if(!user1) return;
 		if(user1.bot) {
 			nbBotsRemoved++;
 			// delete the user document
@@ -352,20 +399,33 @@ client.once('ready', async () => {
 			if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User bot ${user.id} deleted from database`.yellow);
 		}
 	});
-	console.log(`[DATABASE] ${nbBotsRemoved} bots users removed from database`.yellow);
-
-	// HANDLERS //
-	const handlersFiles = fs.readdirSync('./handlers').filter(file => file.endsWith('.js'));
-	console.log(`[HANDLERS] Chargement des handlers...`.brightBlue);
-	for (const file of handlersFiles) {
-		// import the handler
-		const handler = await require(`./handlers/${file}`);
-		handler.client = client;
-		if(handler?.run) {
-			handler.run(client);
-			if(process.env.DEBUG_MESSAGES == "true") console.log(`[HANDLERS] Exécution du handler ${file}...`.brightBlue);
+	// remove bots from servers .users array with their .id
+	// only if the user is not in a server where the bot is
+	let nbBotsRemovedFromServers = 0;
+	var servers = await client.serversdb.find();
+	servers.forEach(async (server) => {
+		// check if the server exists
+		var guild = client.guilds.cache.get(server.id);
+		if(!guild) return;
+		// loop through the users of the server
+		for (const user of server.users) {
+			// check if the user exists
+			var user1 = client.users.cache.get(user.id);
+			if(!user1) return;
+			if(user1.bot) {
+				// delete the user from the server document
+				await client.serversdb.updateOne({ id: guild.id }, { $pull: { users: { id: user.id } } });
+				nbBotsRemovedFromServers++;
+				if(process.env.DEBUG_MESSAGES == "true") console.log(`[DATABASE] User bot ${user.id} removed from server ${guild.id} in database`.yellow);
+			}
 		}
-		console.log(`[HANDLERS] Handler ${file} chargé !`.brightGreen);
+	});
+	console.log(`[DATABASE] ${nbBotsRemoved} bots users removed from database`.yellow);
+	console.log(`[DATABASE] ${nbBotsRemovedFromServers} bots users removed from servers in database`.yellow);
+
+	if(process.env.TELEGRAM == "true") {
+		const { Telegraf } = require('telegraf');
+		client.telegram = new Telegraf(process.env.TELEGRAM_TOKEN);
 	}
 
 	// COMMANDS TO DISCORD API //
@@ -421,34 +481,53 @@ client.once('ready', async () => {
 		// importation de la commande slash
 		let command;
 		try {
-			command = require(`./commands/${file}`);
-			command.type = 'slash';
-			console.log(`[INFO] Commande ${command.data.name} slash chargée !`.brightGreen);
-		} catch (error) {}
+			let exist = fs.existsSync(path.join(__dirname, `./commands/${file}`));
+			if(exist) {
+				command = require(`./commands/${file}`);
+				command.type = 'slash';
+				console.log(`[INFO] Commande ${command.data.name} slash chargée !`.brightGreen);
+			}
+		} catch (error) {console.log(`[ERROR] Une erreur est survenue lors du chargement de la commande ${command} !`.red), console.log(error); return process.exit(1);}
 		try {
-			command = require(`./contextcommands/${file}`);
-			command.type = 'contextmenu';
-			console.log(`[INFO] Commande ${command.data.name} contextmenu chargée !`.brightGreen);
-		} catch (error) {}
+			let exist = fs.existsSync(path.join(__dirname, `./contextcommands/${file}`));
+			if(exist) {
+				command = require(`./contextcommands/${file}`);
+				command.type = 'contextmenu';
+				console.log(`[INFO] Commande ${command.data.name} contextmenu chargée !`.brightGreen);
+			}
+		} catch (error) {console.log(`[ERROR] Une erreur est survenue lors du chargement de la commande ${command} !`.red), console.log(error); return process.exit(1);}
 		try {
-			command = require(`./modalscommands/${file}`);
-			command.type = 'modal';
-			console.log(`[INFO] Commande ${command.data.name} modal chargée !`.brightGreen);
-		} catch (error) {}
+			let exist = fs.existsSync(path.join(__dirname, `./modalscommands/${file}`));
+			if(exist) {
+				command = require(`./modalscommands/${file}`);
+				command.type = 'modal';
+				console.log(`[INFO] Commande ${command.data.name} modal chargée !`.brightGreen);
+			}
+		} catch (error) {console.log(`[ERROR] Une erreur est survenue lors du chargement de la commande ${command} !`.red), console.log(error); return process.exit(1);}
 		try {
-			command = require(`./buttonscommands/${file}`);
-			command.type = 'button';
-			console.log(`[INFO] Commande ${command.data.name} button chargée !`.brightGreen);
-		} catch (error) {}
+			let exist = fs.existsSync(path.join(__dirname, `./buttonscommands/${file}`));
+			if(exist) {
+				command = require(`./buttonscommands/${file}`);
+				command.type = 'button';
+				console.log(`[INFO] Commande ${command.data.name} button chargée !`.brightGreen);
+			}
+		} catch (error) {console.log(`[ERROR] Une erreur est survenue lors du chargement de la commande ${command} !`.red), console.log(error); return process.exit(1);}
 		try {
-			command = require(`./selectcommands/${file}`);
-			command.type = 'select';
-			console.log(`[INFO] Commande ${command.data.name} select chargée !`.brightGreen);
-		} catch (error) {}
+			let exist = fs.existsSync(path.join(__dirname, `./selectcommands/${file}`));
+			if(exist) {
+				command = require(`./selectcommands/${file}`);
+				command.type = 'select';
+				console.log(`[INFO] Commande ${command.data.name} select chargée !`.brightGreen);
+			}
+		} catch (error) {console.log(`[ERROR] Une erreur est survenue lors du chargement de la commande ${command} !`.red), console.log(error); return process.exit(1);}
 
 		// on sauvegarde la commande dans le client
-		client.commands.set(command.data.name, command); // slash command
-		client.textcommands.set(command.data.name, command); // text command
+		try{
+			client.commands.set(command.data.name, command); // slash command
+		}catch(error){console.log(`[INFO] Une erreur est survenue lors du chargement de la commande ${command} !`.red), console.log(error); return process.exit(1);}
+		try{
+			client.textcommands.set(command.data.name, command); // text command
+		}catch(error){console.log(`[INFO] Une erreur est survenue lors du chargement de la commande ${command} !`.red), console.log(error); return process.exit(1);}
 	}
 	console.log(`[INFO] ${client.commands.size} commandes chargées !`.brightGreen);
 
@@ -473,11 +552,158 @@ client.once('ready', async () => {
 	console.log('[INFO] Commandes slash enregistrées !'.brightGreen);
 
 	client.discordcommands = await client.application.commands.fetch();
+
+	// HANDLERS //
+	const handlersFiles = fs.readdirSync('./handlers').filter(file => file.endsWith('.js'));
+	console.log(`[HANDLERS] Chargement des handlers...`.brightBlue);
+	for (const file of handlersFiles) {
+		// import the handler
+		const handler = await require(`./handlers/${file}`);
+		handler.client = client;
+		if(handler?.run) {
+			handler.run(client);
+			if(process.env.DEBUG_MESSAGES == "true") console.log(`[HANDLERS] Exécution du handler ${file}...`.brightBlue);
+		}
+		console.log(`[HANDLERS] Handler ${file} chargé !`.brightGreen);
+	}
+	console.log(`[HANDLERS] ${handlersFiles.length} handlers chargés !`.brightGreen);
+
+
+
+
+
+
+	// TO DELETE //
+	// get ./newplayers.json, ./newPlayersPerServer.json and ./Interserv.json
+	let newplayers = JSON.parse(fs.readFileSync('./newplayers.json'));
+	let newPlayersPerServer = JSON.parse(fs.readFileSync('./newPlayersPerServer.json'));
+	let interserv = JSON.parse(fs.readFileSync('./Interserv.json'));
+
+	// loop newplayers with users, if the user is not in the database, add him with his infos
+	// if it exists, update his infos
+	// in newplayers there are .levels with .level and .xp
+	// if a player exist and has a level oldlevel + newlevel and xp oldxp + newxp
+
+	// loop newplayers [key, value]
+	/*for (const [key, value] of Object.entries(newplayers)) {
+		console.log('Updating user '+key);
+		// check if the user exists
+		var user = await client.usersdb.findOne({ id: key });
+		if(!user) {
+			// create the user document
+			await client.usersdb.createModel({
+				id: key,
+			});
+			console.log(`[DATABASE] User ${key} added to database`.brightGreen);
+			// update the user document
+			await client.usersdb.updateOne({ id: key }, { levels: value.levels });
+			console.log(`[DATABASE] User ${key} updated in database`.brightBlue);
+		} else {
+			// update the user document
+			// check if the user has levels
+			if(user.levels && user.levels?.level && user.levels?.xp) {
+				// loop the levels
+				newlevel = user.levels.level + (value.levels?.level || 0);
+				newxp = user.levels.xp + (value.levels?.xp || 0);
+				// update the user document
+				await client.usersdb.updateOne({ id: key }, { levels: { level: newlevel, xp: newxp } });
+				console.log(`[DATABASE] User ${key} updated in database`.brightBlue);
+			} else {
+				// update the user document
+				await client.usersdb.updateOne({ id: key }, { levels: value.levels });
+				console.log(`[DATABASE] User ${key} updated in database`.brightBlue);
+			}
+		}
+	}*/
+
+	// loop newPlayersPerServer [key, value]
+	/*for (const [key, value] of Object.entries(newPlayersPerServer)) {
+		console.log('Updating server '+key);
+		// check if the server exists
+		var server = await client.serversdb.findOne({ id: key });
+		if(!server) {
+			// create the server document
+			await client.serversdb.createModel({
+				id: key
+			});
+			console.log(`[DATABASE] Server ${key} added to database`.brightGreen);
+			// update the server document
+			await client.serversdb.updateOne({ id: key }, { users: value.users });
+			console.log(`[DATABASE] Server ${key} updated in database`.brightBlue);
+		} else {
+			// update the server document
+			// check if the server has users
+			if(server.users && server.users?.length > 0) {
+				// loop the users
+				for (const user of value.users) {
+					console.log('Updating user '+user.id+' in server '+key);
+					// check if the user exists
+					var user1 = server.users.find(u => u.id == user.id);
+					if(!user1) {
+						// add the user to the server document
+						await client.serversdb.updateOne({ id: key }, { $push: { users: user } });
+						console.log(`[DATABASE] User ${user.id} added to server ${key} in database`.brightGreen);
+					} else {
+						// update the user in the server document by user.levels.level + user1.levels.level and user.levels.xp + user1.levels.xp
+						// check if the user has levels
+						if(user1.levels && user1.levels?.level && user1.levels?.xp) {
+							// loop the levels
+							newlevel = user1.levels.level + (user.levels?.level || 0);
+							newxp = user1.levels.xp + (user.levels?.xp || 0);
+							// update the user document
+							await client.serversdb.updateOne({ id: key, "users.id": user.id }, { $set: { "users.$.levels": { level: newlevel, xp: newxp } } });
+							console.log(`[DATABASE] User ${user.id} updated in server ${key} in database`.brightBlue);
+						} else {
+							// update the user document
+							await client.serversdb.updateOne({ id: key, "users.id": user.id }, { $set: { "users.$.levels": user.levels } });
+							console.log(`[DATABASE] User ${user.id} updated in server ${key} in database`.brightBlue);
+						}
+					}
+				}
+			} else {
+				// update the server document
+				await client.serversdb.updateOne({ id: key }, { users: value.users });
+				console.log(`[DATABASE] Server ${key} updated in database`.brightBlue);
+			}
+		}
+	}*/
+	
+	/*// loop interserv [key, value]
+	for (const value of interserv.servers) {
+		// get interserver with "name" OmegaInterserv
+		let interserver = await client.interserversdb.findOne({ name: "OmegaInterserv" });
+		if(interserv) {
+			console.log('Updating Interserv');
+			// update the interserver document
+			// but before check if the server exists, if it exist don't change it
+			if(!interserver.servers.find(s => s.id == value.id)) {
+				await client.interserversdb.updateOne({ name: "OmegaInterserv" }, { $push: { servers: {
+					id: value.id,
+					channel: value.channel,
+					webhook: {
+						id: value.webhook.disid,
+						token: value.webhook.distoken
+					}
+				} } });
+				console.log(`[DATABASE] Server ${value.id} added to interserver in database`.brightGreen);
+			}
+		}
+	}*/
 });
 
 // login to Discord with your app's token
 client.login(process.env.TOKEN);
 
 // error handler
-process.on('unhandledRejection', error => console.error(`[ERROR] Unhandled promise rejection:\n${error}`));
-process.on('uncaughtException', error => console.error(`[ERROR] Uncaught exception:\n${error}`));
+process.on('unhandledRejection', (error) => {
+	console.error(
+		`[ERROR] Uncaught exception:`
+		+ `\n${error.stack}`
+	);
+});
+process.on('uncaughtException', (error) => {
+	console.error(
+		`[ERROR] Uncaught exception:`
+		+ `\n${error.stack}`
+	);
+});

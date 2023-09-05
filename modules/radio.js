@@ -74,6 +74,7 @@ module.exports = {
         try{
             if(player){
                 console.log(`[RADIO] A player was found, stopping it...`.brightRed);
+                player.removeAllListeners();
                 player.stop();
                 client.players.delete(guild.id);
             }
@@ -81,7 +82,7 @@ module.exports = {
         try{
             if(response){
                 console.log(`[RADIO] A response was found, destroying it...`.brightRed);
-                response.destroy();
+                response.abort();
                 client.responses.delete(guild.id);
             }
         }catch(err){console.log((err).red);}
@@ -92,34 +93,44 @@ module.exports = {
 
         client.players.set(guild.id, player);
         async function cr(readableStream) {
-            return createAudioResource(readableStream, {
-                inputType: StreamType.Arbitrary,
-                inlineVolume: true,
-            });
+            const { stream, type } = await demuxProbe(readableStream);
+            return createAudioResource(
+                stream,
+                {
+                    inputType: type,
+                    inlineVolume: false,
+                }
+            );
         }
 
         let alreadyplaying = false;
         let streamerror = false;
         async function startplaying() {
-            response = await fetch(radio.url, {
-                method: 'GET'
+            console.log(`[RADIO] ${guild.name} Connecting to the stream ${radio.name}`.brightBlue);
+            streamerror = false;
+            const controller = new AbortController();
+            let response1 = await fetch(radio.url, {
+                method: 'GET',
+                signal: controller.signal,
             }).catch(err => {
                 console.log('[ERROR] Cannot fetch the stream'.red);
                 console.log((err).red);
                 console.log('--------------------------------'.red);
                 streamerror = true;
-                console.log(`[RADIO] ${guild.name} The stream is not available, stopping the radio ${radio.name}`.brightRed);
+                console.log(`[RADIO] ${guild.name} The stream is not available... ${radio.name}`.brightRed);
             });
             if(streamerror == false) {
                 // get response music stream and send it to the resource
-                let resource = await cr(response.body);
+                let resource = await cr(response1.body);
                 player.play(resource);
                 console.log(`[RADIO] ${guild.name} ${alreadyplaying ? 're' : ''}connected to the stream ${radio.name}`.brightBlue);
             }
+            client.responses.set(guild.id, controller);
+            response = controller;
         }
         await startplaying();
         if(streamerror == true) {
-            console.log(`[ERROR] ${guild.name} Une erreur est survenue lors de la lecture de la radio ${radio.name}`.red);
+            console.log(`[ERROR] ${guild.name} Une erreur est survenue lors de la lecture de la radio ${radio.name}, nous allons la stopper`.red);
             try{
                 await client.serversdb.bulkWrite([
                     client.bulkutility.setField({
@@ -133,6 +144,7 @@ module.exports = {
             try{
                 if(player) {
                     console.log(`[RADIO] ${guild.name} A player was found, stopping it...`.brightRed);
+                    player.removeAllListeners();
                     player.stop();
                     client.players.delete(guild.id);
                 }
@@ -140,7 +152,7 @@ module.exports = {
             try{
                 if(response) {
                     console.log(`[RADIO] ${guild.name} A response was found, destroying it...`.brightRed);
-                    response.destroy();
+                    response.abort();
                     client.responses.delete(guild.id);
                 }
             }catch(err){console.log((err).red)}
@@ -153,64 +165,82 @@ module.exports = {
 
         // if the stream is ok
         let errorcount = 0;
-        player.on(AudioPlayerStatus.Idle, async () => {
-            if(player !== client.players.get(guild.id)) return;
-            if(errorcount >= 5) {
-                console.log(`[ERROR] PLAYER ${guild.name} Too many errors, stopping the radio ${radio.name}`.brightRed);
-                try{
-                    await client.serversdb.bulkWrite([
-                        client.bulkutility.setField({
-                            'id': guild.id
-                        }, {
-                            'voiceconfig.playing': false,
-                            'voiceconfig.type': 'none'
-                        })
-                    ])}catch(err){console.log((err).red)}
-                try{
-                    if(player) {
-                        console.log(`[RADIO] ${guild.name} A player was found, stopping it...`.brightRed);
-                        player.stop();
-                        client.players.delete(guild.id);
-                    }
-                }catch(err){console.log((err).red)}
-                try{
-                    if(response) {
-                        console.log(`[RADIO] ${guild.name} A response was found, destroying it...`.brightRed);
-                        response.destroy();
-                        client.responses.delete(guild.id);
-                    }
-                }catch(err){console.log((err).red)}
-                // leave the voice channel
-                let connection = getVoiceConnection(guild.id);
-                try{
-                    if(connection) connection.destroy();
-                }catch(err){console.log((err).red)}
-                return false;
-            }
-            // wait 5 seconds
-            errorcount++;
-            console.log(`[RADIO] ${guild.name} Error ${errorcount}, Waiting 2 seconds before reconnecting to the radio ${radio.name}`.brightYellow);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            await startplaying();
-        });
+        if(!player.listenerCount(AudioPlayerStatus.Idle)) {
+            player.on(AudioPlayerStatus.Idle, async () => {
+                if(errorcount >= 5) {
+                    console.log(`[ERROR] PLAYER ${guild.name} Too many errors, stopping the radio ${radio.name}`.brightRed);
+                    try{
+                        await client.serversdb.bulkWrite([
+                            client.bulkutility.setField({
+                                'id': guild.id
+                            }, {
+                                'voiceconfig.playing': false,
+                                'voiceconfig.type': 'none'
+                            })
+                        ])}catch(err){console.log((err).red)}
+                    try{
+                        if(player) {
+                            console.log(`[RADIO] ${guild.name} A player was found, stopping it...`.brightRed);
+                            player.removeAllListeners();
+                            player.stop();
+                            client.players.delete(guild.id);
+                        }
+                    }catch(err){console.log((err).red)}
+                    try{
+                        if(response) {
+                            console.log(`[RADIO] ${guild.name} A response was found, destroying it...`.brightRed);
+                            response.abort();
+                            client.responses.delete(guild.id);
+                        }
+                    }catch(err){console.log((err).red)}
+                    // leave the voice channel
+                    let connection = getVoiceConnection(guild.id);
+                    try{
+                        if(connection) connection.destroy();
+                    }catch(err){console.log((err).red)}
+                    return false;
+                }
+                // wait 5 seconds
+                errorcount++;
+                console.log(`[RADIO] ${guild.name} Error ${errorcount}, Waiting ${(2000*errorcount)/1000} seconds before reconnecting to the radio ${radio.name}`.brightYellow);
+                await new Promise(resolve => setTimeout(resolve, 2000*errorcount));
+                await startplaying();
+            });
+        }
         // on playing
-        player.on(AudioPlayerStatus.Playing, async () => {
-            console.log(`[RADIO] (PLAYER) ${guild.name} The bot is playing ${alreadyplaying ? 'again ' : ''}the radio ${radio.name}`.brightGreen);
-            alreadyplaying = true;
-            errorcount = 0;
-        });
+        if(!player.listenerCount(AudioPlayerStatus.Playing)) {
+            player.on(AudioPlayerStatus.Playing, async () => {
+                console.log(`[RADIO] (PLAYER) ${guild.name} The bot is playing ${alreadyplaying ? 'again ' : ''}the radio ${radio.name}`.brightGreen);
+                alreadyplaying = true;
+                errorcount = 0;
+            });
+        }
         // on autopaused
-        player.on(AudioPlayerStatus.AutoPaused, async () => {
-            console.log(`[RADIO] (PLAYER) ${guild.name} The bot is auto paused on the radio ${radio.name}`.brightGreen);
-        });
+        if(!player.listenerCount(AudioPlayerStatus.AutoPaused)) {
+            player.on(AudioPlayerStatus.AutoPaused, async () => {
+                console.log(`[RADIO] (PLAYER) ${guild.name} The bot is auto paused on the radio ${radio.name}`.brightGreen);
+            });
+        }
         // on paused
-        player.on(AudioPlayerStatus.Paused, async () => {
-            console.log(`[RADIO] (PLAYER) ${guild.name} The bot is paused on the radio ${radio.name}`.brightGreen);
-        });
+        if(!player.listenerCount(AudioPlayerStatus.Paused)) {
+            player.on(AudioPlayerStatus.Paused, async () => {
+                console.log(`[RADIO] (PLAYER) ${guild.name} The bot is paused on the radio ${radio.name}`.brightGreen);
+            });
+        }
         // on buffering
-        player.on(AudioPlayerStatus.Buffering, async () => {
-            console.log(`[RADIO] (PLAYER) ${guild.name} The bot is buffering on the radio ${radio.name}`.brightYellow);
-        });
+        if(!player.listenerCount(AudioPlayerStatus.Buffering)) {
+            player.on(AudioPlayerStatus.Buffering, async () => {
+                console.log(`[RADIO] (PLAYER) ${guild.name} The bot is buffering on the radio ${radio.name}`.brightYellow);
+            });
+        }
+        // on error
+        if(!player.listenerCount('error')) {
+            player.on('error', error => {
+                console.log(`[ERROR] (PLAYER) ${guild.name} An error occured on the radio ${radio.name}`.brightRed);
+                console.log((error).red);
+                console.log('--------------------------------'.red);
+            });
+        }
 
         let connection = getVoiceConnection(guild.id);
 
@@ -236,7 +266,6 @@ module.exports = {
             //////////////////////////////// PLAY THE RADIO ////////////////////////////////
 
             connection = joinVoiceChannel(connectioninfo);
-            connection = getVoiceConnection(guild.id);
             
             // set the connectioninfo variable
             try{
@@ -253,45 +282,108 @@ module.exports = {
             console.log((`[RADIO] ${guild.name} Audio player is playing the radio ${radio.name}`).brightBlue);
 
             try {
-                connection.on('stateChange', (oldState, newState) => {
-                    const oldNetworking = Reflect.get(oldState, 'networking');
-                    const newNetworking = Reflect.get(newState, 'networking');
-                  
-                    const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
-                      const newUdp = Reflect.get(newNetworkState, 'udp');
-                      clearInterval(newUdp?.keepAliveInterval);
-                    }
-                  
-                    oldNetworking?.off('stateChange', networkStateChangeHandler);
-                    newNetworking?.on('stateChange', networkStateChangeHandler);
-                });
+                if(!connection.listenerCount('stateChange')) {
+                    connection.on('stateChange', (oldState, newState) => {
+                        const oldNetworking = Reflect.get(oldState, 'networking');
+                        const newNetworking = Reflect.get(newState, 'networking');
+                    
+                        const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
+                        const newUdp = Reflect.get(newNetworkState, 'udp');
+                        clearInterval(newUdp?.keepAliveInterval);
+                        }
+                    
+                        oldNetworking?.off('stateChange', networkStateChangeHandler);
+                        newNetworking?.on('stateChange', networkStateChangeHandler);
+                    });
+                } else console.log(`[RADIO] (VOICE) ${guild.name} The bot has already an event for the event stateChange`.brightBlue);
                 // ON DISCONNECT
-                connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
-                    try {
-                        await Promise.race([
-                            entersState(connection, VoiceConnectionStatus.Signalling, 10_000),
-                            entersState(connection, VoiceConnectionStatus.Connecting, 10_000),
-                        ]);
-                        // Seems to be reconnecting to a new channel - ignore disconnect
-                        console.log((`[RADIO] (VOICE) ${guild.name} The bot is reconnecting to the channel`).brightBlue);
-                    } catch (error) {
-                        // Seems to be a real disconnect which SHOULDN'T be recovered from
-                        connection.destroy();
+                if(!connection.listenerCount(VoiceConnectionStatus.Disconnected)) {
+                    connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+                        try {
+                            await Promise.race([
+                                entersState(connection, VoiceConnectionStatus.Signalling, 10_000),
+                                entersState(connection, VoiceConnectionStatus.Connecting, 10_000),
+                            ]);
+                            // Seems to be reconnecting to a new channel - ignore disconnect
+                            console.log((`[RADIO] (VOICE) ${guild.name} The bot is reconnecting to the channel`).brightBlue);
+                        } catch (error) {
+                            // Seems to be a real disconnect which SHOULDN'T be recovered from
+                            try{
+                                await client.serversdb.bulkWrite([
+                                    client.bulkutility.setField({
+                                        'id': guild.id
+                                    }, {
+                                        'voiceconfig.playing': false,
+                                        'voiceconfig.type': 'none'
+                                    })
+                                ])
+                            }catch(err){console.log(err);}
+                            console.log((`[RADIO] (VOICE) ${guild.name} The bot has been disconnected`).brightBlue);
+                            // remove the player
+                            try{
+                                if(player) {
+                                    console.log(`[RADIO] (VOICE) ${guild.name} A player was found, stopping it...`.brightRed);
+                                    player.removeAllListeners();
+                                    player.stop();
+                                    client.players.delete(guild.id);
+                                }
+                            }catch(err){console.log(err);}
+                            try{
+                                if(response) {
+                                    console.log(`[RADIO] (VOICE) ${guild.name} A response was found, destroying it...`.brightRed);
+                                    response.abort();
+                                    client.responses.delete(guild.id);
+                                }
+                            }catch(err){console.log(err);}
+                            let connection = getVoiceConnection(guild.id);
+                            try{
+                                if(connection) connection.destroy();
+                            }catch(err){console.log(err);}
+                            return false;
+                        }
+                    });
+                } else console.log(`[RADIO] (VOICE) ${guild.name} The bot has already an event for the event VoiceConnectionStatus.Disconnected`.brightBlue);
+                // ON READY
+                let alreadyconnected = false;
+                if(!connection.listenerCount(VoiceConnectionStatus.Ready)) {
+                    connection.on(VoiceConnectionStatus.Ready, async (oldState, newState) => {
+                        // save that the music is playing
                         try{
                             await client.serversdb.bulkWrite([
                                 client.bulkutility.setField({
                                     'id': guild.id
                                 }, {
-                                    'voiceconfig.playing': false,
-                                    'voiceconfig.type': 'none'
+                                    'voiceconfig.playing': true,
+                                    'voiceconfig.type': 'radio'
                                 })
                             ])
                         }catch(err){console.log(err);}
-                        console.log((`[RADIO] (VOICE) ${guild.name} The bot has been disconnected`).brightBlue);
+                        // get channel
+                        console.log(`[RADIO] (VOICE) ${guild.name} The bot is ready and ${alreadyconnected ? 'reconnected' : 'connected'}`.brightBlue);
+                        alreadyconnected = true;
+                    });
+                } else console.log(`[RADIO] (VOICE) ${guild.name} The bot has already an event for the event VoiceConnectionStatus.Ready`.brightBlue);
+                // ON CONNECTING
+                if(!connection.listenerCount(VoiceConnectionStatus.Connecting)) {
+                    connection.on(VoiceConnectionStatus.Connecting, async (oldState, newState) => {
+                        console.log(`[RADIO] (VOICE) ${guild.name} The bot is connecting to the channel`.brightBlue);
+                    });
+                } else console.log(`[RADIO] (VOICE) ${guild.name} The bot has already an event for the event VoiceConnectionStatus.Connecting`.brightBlue);
+                // ON SIGNALLING
+                if(!connection.listenerCount(VoiceConnectionStatus.Signalling)) {
+                    connection.on(VoiceConnectionStatus.Signalling, async (oldState, newState) => {
+                        console.log(`[RADIO] (VOICE) ${guild.name} The bot is signalling to the channel`.brightYellow);
+                    });
+                } else console.log(`[RADIO] (VOICE) ${guild.name} The bot has already an event for the event VoiceConnectionStatus.Signalling`.brightBlue);
+                // ON DESTROYED
+                if(!connection.listenerCount(VoiceConnectionStatus.Destroyed)) {
+                    connection.on(VoiceConnectionStatus.Destroyed, async (oldState, newState) => {
+                        console.log(`[RADIO] (VOICE) ${guild.name} The bot has been destroyed`.brightBlue);
                         // remove the player
                         try{
                             if(player) {
                                 console.log(`[RADIO] (VOICE) ${guild.name} A player was found, stopping it...`.brightRed);
+                                player.removeAllListeners();
                                 player.stop();
                                 client.players.delete(guild.id);
                             }
@@ -299,73 +391,25 @@ module.exports = {
                         try{
                             if(response) {
                                 console.log(`[RADIO] (VOICE) ${guild.name} A response was found, destroying it...`.brightRed);
-                                response.destroy();
+                                response.abort();
                                 client.responses.delete(guild.id);
                             }
                         }catch(err){console.log(err);}
-                        let connection = getVoiceConnection(guild.id);
-                        try{
-                            if(connection) connection.destroy();
-                        }catch(err){console.log(err);}
-                        return false;
-                    }
-                });
-                // ON READY
-                let alreadyconnected = false;
-                connection.on(VoiceConnectionStatus.Ready, async (oldState, newState) => {
-                    // save that the music is playing
-                    try{
-                        await client.serversdb.bulkWrite([
-                            client.bulkutility.setField({
-                                'id': guild.id
-                            }, {
-                                'voiceconfig.playing': true,
-                                'voiceconfig.type': 'radio'
-                            })
-                        ])
-                    }catch(err){console.log(err);}
-                    // get channel
-                    console.log(`[RADIO] (VOICE) ${guild.name} The bot is ready and ${alreadyconnected ? 'reconnected' : 'connected'}`.brightBlue);
-                    alreadyconnected = true;
-                });
-                // ON CONNECTING
-                connection.on(VoiceConnectionStatus.Connecting, async (oldState, newState) => {
-                    console.log(`[RADIO] (VOICE) ${guild.name} The bot is connecting to the channel`.brightBlue);
-                });
-                // ON SIGNALLING
-                connection.on(VoiceConnectionStatus.Signalling, async (oldState, newState) => {
-                    console.log(`[RADIO] (VOICE) ${guild.name} The bot is signalling to the channel`.brightYellow);
-                });
-                // ON DESTROYED
-                connection.on(VoiceConnectionStatus.Destroyed, async (oldState, newState) => {
-                    console.log(`[RADIO] (VOICE) ${guild.name} The bot has been destroyed`.brightBlue);
-                    // remove the player
-                    try{
-                        if(player) {
-                            console.log(`[RADIO] (VOICE) ${guild.name} A player was found, stopping it...`.brightRed);
-                            player.stop();
-                            client.players.delete(guild.id);
-                        }
-                    }catch(err){console.log(err);}
-                    try{
-                        if(response) {
-                            console.log(`[RADIO] (VOICE) ${guild.name} A response was found, destroying it...`.brightRed);
-                            response.destroy();
-                            client.responses.delete(guild.id);
-                        }
-                    }catch(err){console.log(err);}
-                    // leave the voice channel
-                    let connection = getVoiceConnection(guild.id);
-                    try{
-                        if(connection) connection.destroy();
-                    }catch(err){console.log(err);}
-                });
+                        // check the number of events listeners
+                        console.log(`[RADIO] (VOICE) ${guild.name} The bot has ${connection.listenerCount('stateChange') + connection.listenerCount(VoiceConnectionStatus.Disconnected) + connection.listenerCount(VoiceConnectionStatus.Ready) + connection.listenerCount(VoiceConnectionStatus.Connecting) + connection.listenerCount(VoiceConnectionStatus.Signalling) + connection.listenerCount(VoiceConnectionStatus.Destroyed)} events listeners`.brightBlue);
+                        // remove all events listeners from the connection
+                        connection.removeAllListeners();
+                        // console log
+                        console.log(`[RADIO] (VOICE) ${guild.name} All events listeners have been removed`.brightBlue);
+                    });
+                } else console.log(`[RADIO] (VOICE) ${guild.name} The bot has already an event for the event VoiceConnectionStatus.Destroyed`.brightBlue);
             } catch (error) {
                 console.log(`[RADIO] ${guild.name} Error while connecting to the server due to ${error}`.brightRed);
                 // remove the player
                 try{
                     if(player) {
                         console.log(`[RADIO] ${guild.name} A player was found, stopping it...`.brightRed);
+                        player.removeAllListeners();
                         player.stop();
                         client.players.delete(guild.id);
                     }
@@ -373,7 +417,7 @@ module.exports = {
                 try{
                     if(response) {
                         console.log(`[RADIO] ${guild.name} A response was found, destroying it...`.brightRed);
-                        response.destroy();
+                        response.abort();
                         client.responses.delete(guild.id);
                     }
                 }catch(err){console.log(err);}

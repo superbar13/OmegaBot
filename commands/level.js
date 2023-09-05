@@ -8,7 +8,10 @@ module.exports = {
     .setDescription('Affiche le niveau global d\'un utilisateur')
     .addUserOption(option => option.setName('utilisateur').setDescription('Utilisateur dont vous voulez voir le niveau')),
     category: 'level',
+    telegram: 'disabled',
     async execute(interaction){
+        if(!interaction.client.config.modules['levels'].enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.'});
+
         const createbar = interaction.client.modules.createBar.createBar;
 
         let base = interaction.client.config.modules['levels'].addedconfig.base;
@@ -38,7 +41,7 @@ module.exports = {
             { name: '💫 XP', value: (userModel.levels.xp + '/' + XPtoNextLevel).toString(), inline: true },
         )
         .setFooter({ text: botname, iconURL: avatar })
-        .setColor(Math.floor(Math.random()*16777215).toString(16))
+        .setColor(interaction.client.modules.randomcolor.getRandomColor())
         .setTimestamp()
         .setImage('https://cdn.discordapp.com/attachments/909475569459163186/1077679404240613396/bluebar.gif')
         // user avatar (and in full 4K and gif)

@@ -1,19 +1,22 @@
 // ping command module to be used in index.js
 
-const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
+const { SlashCommandBuilder } = require('@discordjs/builders');
 const { EmbedBuilder } = require('discord.js');
-const { PermissionsBitField } = require('discord.js');
+const { PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
     .setName('clear')
     .setDescription('Supprime un nombre de messages')
-    .addIntegerOption(option => option.setName('nombre').setDescription('Nombre de messages a supprimer').setRequired(true)),
+    .addIntegerOption(option => option.setName('nombre').setDescription('Nombre de messages a supprimer').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .setDMPermission(false),
     category: 'moderation',
+    telegram: 'enabled',
     async execute(interaction){
-        // check if the user has the permission to use this command
-        if(!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)){
-            await interaction.reply('> ❌ Vous n\'avez pas la permission d\'utiliser cette commande');
+        // check if bot has permission
+        if(!interaction.guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages)){
+            await interaction.reply('> ❌ Je n\'ai pas la permission de supprimer des messages');
             return;
         }
         // fetch the messages
@@ -45,7 +48,7 @@ module.exports = {
             .setTitle('🪄 ' + number + ' messages supprimés')
             .setDescription('Dans le salon <#' + interaction.channel.id + '>\nPar <@' + interaction.user.id + '>`\nCe message sera supprimé dans 5 secondes')
             .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() })
-            .setColor(Math.floor(Math.random()*16777215).toString(16))
+            .setColor(interaction.client.modules.randomcolor.getRandomColor())
             .setTimestamp()
             .setImage('https://cdn.discordapp.com/attachments/909475569459163186/1077679404240613396/bluebar.gif')
             .setThumbnail('https://media.discordapp.net/attachments/909475569459163186/1077678827842572299/soap.png');

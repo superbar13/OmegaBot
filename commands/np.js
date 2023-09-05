@@ -9,8 +9,10 @@ const fetch = require('node-fetch');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('np')
-        .setDescription('Quelle chanson est en cours de lecture ?'),
-        category: 'music',
+        .setDescription('Quelle chanson est en cours de lecture ?')
+        .setDMPermission(false),
+    category: 'music',
+    ratelimit: true,
     async execute(interaction){
         if(!interaction.client.config.modules['radio'].enabled) return interaction.reply({ content: '> ❌ Le module radio est désactivé.'});
         await interaction.deferReply();
@@ -41,7 +43,7 @@ module.exports = {
                     )
                     .setThumbnail(radio.logo)
                     .setTimestamp()
-                    .setColor(Math.floor(Math.random()*16777215).toString(16))
+                    .setColor(interaction.client.modules.randomcolor.getRandomColor())
                     .setFooter({ text: botname, iconURL: avatar });
                 // show in a embed message that the bot is playing
                 await interaction.editReply({ embeds: [embed] });

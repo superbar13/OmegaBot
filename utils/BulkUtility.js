@@ -78,6 +78,18 @@ module.exports = {
             }
         }
     },
+
+    editInArray: (filter, update, arrayFilters) => {
+        return {
+            updateMany: {
+                filter: filter,
+                update: {
+                    $set: update
+                },
+                arrayFilters: arrayFilters
+            }
+        }
+    },
     
     deleteAllDocuments: (filter) => {
         return {

@@ -40,7 +40,7 @@ module.exports = {
                 .setTitle('Catégories de commandes')
                 .setDescription('📜 Liste des catégories 📜')
                 .setFooter({ text: botname, iconURL: avatar })
-                .setColor(Math.floor(Math.random()*16777215).toString(16))
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
                 .setAuthor({ name: botname, iconURL: avatar })
                 .setTimestamp();
             // add categories to embed
@@ -98,7 +98,7 @@ module.exports = {
                 .setTitle('Commandes de la catégorie ' + category)
                 .setDescription('📜 Liste des commandes 📜')
                 .setFooter({ text: botname, iconURL: avatar })
-                .setColor(Math.floor(Math.random()*16777215).toString(16))
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
                 .setTimestamp();
 
             // add commands to embed

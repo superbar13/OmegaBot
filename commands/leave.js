@@ -7,7 +7,8 @@ const {PermissionsBitField} = require('discord.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('leave')
-        .setDescription('Quitter le salon vocal'),
+        .setDescription('Quitter le salon vocal')
+        .setDMPermission(false),
         category: 'music',
     async execute(interaction){
         if(!interaction.client.config.modules['radio'].enabled) return interaction.reply({ content: '> ❌ Le module radio est désactivé.'});
@@ -57,11 +58,12 @@ module.exports = {
                         const response = interaction.client.responses.get(interaction.guild.id);
                         // stop the player
                         if(player){
+                            player.removeAllListeners();
                             player.stop();
                             client.players.delete(interaction.guild.id);
                         }
                         if(response){
-                            response.destroy();
+                            response.abort();
                             interaction.client.responses.delete(interaction.guild.id);
                         }
                     } else {
@@ -73,11 +75,12 @@ module.exports = {
                         const response = interaction.client.responses.get(interaction.guild.id);
                         // stop the player
                         if(player){
+                            player.removeAllListeners();
                             player.stop();
                             interaction.client.players.delete(interaction.guild.id);
                         }
                         if(response){
-                            response.destroy();
+                            response.abort();
                             interaction.client.responses.delete(interaction.guild.id);
                         }
                     }

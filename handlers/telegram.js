@@ -1,177 +1,399 @@
 const { EmbedBuilder, PermissionsBitField } = require('discord.js');
-
+const moment = require('moment');
 const ratelimit = new Map();
 
 module.exports = {
-    name: 'message',
+    name: 'telegram',
     run: async(client) => {
-        // on message event
-        client.on('messageCreate', async message => {
-            let prefix = client.prefix; // on récupère le prefix du bot
-            // Empêcher les bots
-            if(message.author.bot) return
+        if(process.env.TELEGRAM != "true") return console.log('[TELEGRAM] Telegram module disabled, skipping...'.brightBlue);
 
-            // Uniquement si c'est le bon prefix
-            if(!message.content.startsWith(prefix)) return;
+        // for let command of commands, create a new command in the telegram bot
+        let commandsInTelegramFormat = [];
+        let commandsToDeleteInTelegramFormat = [];
+        console.log('[TELEGRAM] Creating telegram commands...'.brightBlue);
+        // transform commands map to array
+        let commands = client.textcommands;
+        // for each command
+        for(let command of commands) {
+            command = command[1];
+            if(command.data.name == "help" || command.data.name == "start") continue;
+            if(command.type != "slash") continue;
+            if(process.env.DEBUG_MESSAGES == "true") console.log(`[TELEGRAM] Creating command ${command.data.name}...`.brightBlue);
+            if(command.telegram == "disabled" || (command?.data?.dm_permission == false && command.telegram != "enabled")) {
+                commandsToDeleteInTelegramFormat.push(command.data.name);
+                continue;
+            }
+            // create the command
+            await client.telegram.command(command.data.name, async (ctx) => {
+                if(command.ratelimit) {
+                    let blockedtime = command.rateblockedtime || process.env.BLOCKEDTIME || 30;
+                    let maxmessages = command.ratemaxmessages || process.env.MAXMESSAGES || 5;
+                    let removeafter = command.rateremoveafter || process.env.REMOVEAFTER || 30;
 
-            // Obtenir le nom de la commande
-            var args = message.content?.split(prefix)?.[1]?.trim()?.split(' '); // on sépare le prefix et la commande
-            var commandName = args?.[0]?.toLowerCase() // on peut pas faire de commande slash avec majuscules donc on met tout en minuscules
-            delete args // on a plus besoin de ça finalement donc on supprime, eh oui c'est rigolo de faire des trucs inutiles
+                    // check if the user is in the ratelimit map
+                    if(ratelimit.get(ctx.from.id)) {
+                        // if the user is ratelimited
+                        if(ratelimit.get(ctx.from.id).ratelimit) {
+                            if(ratelimit.get(ctx.from.id).time < Date.now()) {
+                                // delete the user from the ratelimit map
+                                ratelimit.delete(ctx.from.id);
+                            } else {
+                                // if the user has not been responded
+                                if(!ratelimit.get(ctx.from.id).responded) {
+                                    // send a message to the user
+                                    await ctx.reply('Vous êtes bannis des commandes pendant ' + blockedtime + ' secondes pour avoir spammer les commandes, le bot ne répondra plus à vos commandes pendant ' + blockedtime + ' secondes.');
+                                    // set responded to true
+                                    ratelimit.get(ctx.from.id).responded = true;
+                                    // return
+                                    return;
+                                } else return;
+                            }
+                        } else {
+                            // add 1 to the number of messages
+                            ratelimit.get(ctx.from.id).nbofmessages++;
+                            // wait 30 seconds to remove 1 to the number of messages
+                            setTimeout(() => {
+                                ratelimit.get(ctx.from.id).nbofmessages--;
+                                // if number of messages is 0, delete the user from the ratelimit map
+                                if(ratelimit.get(ctx.from.id).nbofmessages == 0 && !ratelimit.get(ctx.from.id).ratelimit) ratelimit.delete(ctx.from.id);
+                            }, removeafter * 1000);
+                            // if the user has sent more than 5 messages in 30 seconds
+                            if(ratelimit.get(ctx.from.id).nbofmessages > maxmessages) {
+                                // set ratelimit to true
+                                ratelimit.get(ctx.from.id).ratelimit = true;
+                                // set time to blockedtime seconds
+                                ratelimit.get(ctx.from.id).time = Date.now() + (blockedtime * 1000);
+                                // send a message to the user
+                                await ctx.reply('Vous êtes en train de spammer les commandes, veuillez patienter ' + blockedtime + ' secondes avant de pouvoir réutiliser une commande.');
+                                // return
+                                return;
+                            }
+                        }
+                    // add the user to the ratelimit map
+                    } else {
+                        ratelimit.set(ctx.from.id, {time: Date.now(), responded: false, nbofmessages: 1, ratelimit: false});
+                        // wait blockedtime seconds to remove 1 to the number of messages
+                        setTimeout(() => {
+                            ratelimit.get(ctx.from.id).nbofmessages--;
+                            // if number of messages is 0, delete the user from the ratelimit map
+                            if(ratelimit.get(ctx.from.id).nbofmessages == 0 && !ratelimit.get(ctx.from.id).ratelimit) ratelimit.delete(ctx.from.id);
+                        }, removeafter * 1000);
+                    }
+                }
 
-            // Vérifier si la commande existe sous forme de commande slash
-            var command = client.textcommands.get(commandName);
+                console.log(`[TELEGRAM] Command ${command.data.name} executed`.brightGreen);
+                await onCommand(ctx, command);
+            });
+            // add the command to the commandsInTelegramFormat array
+            commandsInTelegramFormat.push({
+                command: command.data.name,
+                description: command.data.description
+            });
+        }
+        console.log('[TELEGRAM] Telegram commands created'.brightGreen);
 
+        // set the telegram commands
+        console.log('[TELEGRAM] Setting telegram commands...'.brightBlue);
+        await client.telegram.telegram.setMyCommands(commandsInTelegramFormat);
+        console.log('[TELEGRAM] Telegram commands set'.brightGreen);
+
+        // set start and help
+        console.log('[TELEGRAM] Setting start and help commands...'.brightBlue);
+        let help = await client.textcommands.get('help');
+        
+        client.telegram.start(async (ctx) => {
+            await onCommand(ctx, help, true);
+        });
+        client.telegram.help(async (ctx) => {
+            await onCommand(ctx, help);
+        });
+        console.log('[TELEGRAM] Start and help commands set'.brightGreen);
+
+        // on command event
+        async function onCommand(message, command, isStart) {
             // Si aucune commande trouvé
             if(!command || command.type != "slash") return;
 
-            if(command.ratelimit) {
-                let blockedtime = command.rateblockedtime || process.env.BLOCKEDTIME || 30;
-                let maxmessages = command.ratemaxmessages || process.env.MAXMESSAGES || 5;
-                let removeafter = command.rateremoveafter || process.env.REMOVEAFTER || 30;
+            let commandName = command.data.name;
 
-                // check if the user is in the ratelimit map
-                if(ratelimit.get(message.author.id)) {
-                    // if the user is ratelimited
-                    if(ratelimit.get(message.author.id).ratelimit) {
-                        if(ratelimit.get(message.author.id).time < Date.now()) {
-                            // delete the user from the ratelimit map
-                            ratelimit.delete(message.author.id);
-                        } else {
-                            // if the user has not been responded
-                            if(!ratelimit.get(message.author.id).responded) {
-                                // send a message to the user
-                                await message.reply('Vous êtes bannis des commandes pendant ' + blockedtime + ' secondes pour avoir spammer les commandes, le bot ne répondra plus à vos commandes pendant ' + blockedtime + ' secondes.');
-                                // set responded to true
-                                ratelimit.get(message.author.id).responded = true;
-                                // return
-                                return;
-                            } else return;
-                        }
-                    } else {
-                        // add 1 to the number of messages
-                        ratelimit.get(message.author.id).nbofmessages++;
-                        // wait 30 seconds to remove 1 to the number of messages
-                        setTimeout(() => {
-                            ratelimit.get(message.author.id).nbofmessages--;
-                            // if number of messages is 0, delete the user from the ratelimit map
-                            if(ratelimit.get(message.author.id).nbofmessages == 0 && !ratelimit.get(message.author.id).ratelimit) ratelimit.delete(message.author.id);
-                        }, removeafter * 1000);
-                        // if the user has sent more than 5 messages in 30 seconds
-                        if(ratelimit.get(message.author.id).nbofmessages > maxmessages) {
-                            // set ratelimit to true
-                            ratelimit.get(message.author.id).ratelimit = true;
-                            // set time to blockedtime seconds
-                            ratelimit.get(message.author.id).time = Date.now() + (blockedtime * 1000);
-                            // send a message to the user
-                            await message.reply('Vous êtes en train de spammer les commandes, veuillez patienter ' + blockedtime + ' secondes avant de pouvoir réutiliser une commande.');
-                            // return
-                            return;
+            // Modifier le message pour qu'il ressemble un peu plus à une interaction discord, même si c'est adapté à telegram
+            message.content = message.message.text;
+            // add things of message.message in message
+            message.channel = {
+                id: message.chat.id,
+                type: message.chat.type,
+                name: message.chat.title,
+                guild: {
+                    id: message.chat.id,
+                    name: message.chat.title,
+                    members: {
+                        cache: {
+                            get: (id) => {
+                                return message.user;
+                            }
                         }
                     }
-                // add the user to the ratelimit map
-                } else {
-                    ratelimit.set(message.author.id, {time: Date.now(), responded: false, nbofmessages: 1, ratelimit: false});
-                    // wait blockedtime seconds to remove 1 to the number of messages
-                    setTimeout(() => {
-                        ratelimit.get(message.author.id).nbofmessages--;
-                        // if number of messages is 0, delete the user from the ratelimit map
-                        if(ratelimit.get(message.author.id).nbofmessages == 0 && !ratelimit.get(message.author.id).ratelimit) ratelimit.delete(message.author.id);
-                    }, removeafter * 1000);
+                },
+                createMessageComponentCollector: function(obj) {
+                    const EventEmitter = require('events');
+                    class Collector extends EventEmitter {
+                        constructor() {
+                            super();
+                            this.filter = obj.filter;
+                            this.time = obj.time;
+                            this.ended = false;
+                            this.collected = [];
+                            this.on('collect', (data) => {
+                                this.collected.push(data);
+                            })
+                            this.on('end', () => {
+                                this.ended = true;
+                            })
+                        }
+                    }
+                    let collector = new Collector();
+                    return collector;
+                },
+                messages: {
+                    cache: [],
+                    // get a number of messages with option obj.limit on the telegram chat, dm or group
+                    fetch: async function(obj) {
+                        return {
+                            size: obj.limit || 99999999
+                        }
+                    }
+                },
+                bulkDelete: async function(number) {
+                    // delete a number of messages on the telegram chat, dm or group
+                    // get the id of the message sent by the bot
+                    let message_id = message.message.message_id;
+                    for(let i = 0; i < number; i++) {
+                        try{
+                            // delete the message
+                            await client.telegram.telegram.deleteMessage(message.chat.id, message_id - i);
+                        }catch(err){}
+                    }
+                    // return true
+                    return true;
+                },
+            }
+            // replace message author
+            message.user = {
+                id: message.from.id,
+                username: message.from.username,
+                discriminator: message.from.username,
+                tag: message.from.username,
+                displayAvatarURL: () => {return message.from.photo_url},
+                avatarURL: () => {return message.from.photo_url},
+                bot: false,
+                fetch: async () => {return message.user}
+            }
+            message.author = message.user;
+            // replace message guild
+            let channelsMap = new Map();
+            channelsMap.set(message.chat.id, {
+                id: message.chat.id,
+                type: message.chat.type,
+                name: message.chat.title,
+                guild: function() {return message.guild},
+            })
+            // get me with telegram.getChatMember
+            let otherme = await client.telegram.telegram.getMe();
+            let me = await client.telegram.telegram.getChatMember(message.chat.id, otherme.id);
+            message.guild = {
+                id: message.chat.id,
+                name: message.chat.title,
+                members: {
+                    cache: [],
+                    me: {
+                        id: me.user.id,
+                        username: me.user.username,
+                        discriminator: me.user.username,
+                        tag: me.user.username,
+                        displayAvatarURL: () => {return me.user.photo_url},
+                        bot: false,
+                        fetch: async () => {return message.user},
+                        // if user admin, add admin type Discord.js permission, absolutely all permissions
+                        // else, add basic user type Discord.js permission
+                        permissions: new PermissionsBitField(me.status == 'administrator' ? 1099511627775n : 104324673n)
+                    }
+                },
+                fetch: async () => {return message.guild},
+                channels: {
+                    // get the only channel of the group
+                    cache: channelsMap
+                },
+                roles: {
+                    cache: new Map()
+                },
+                emojis: {
+                    cache: new Map()
+                },
+                memberCount: "unknown"
+            }
+            // replace other things
+            message.sourceType = 'textCommand';
+            message.options = {};
+            message.awaitModalSubmit = () => methodNotExists(message, 'awaitModalSubmit');
+            message.showModal = () => methodNotExists(message, 'showModal');
+            message.deferReply = async (options) => { 
+                messageResponse = await message.reply('Veuillez patienter pendant l\'exécution de la commande...');
+                return messageResponse;
+            }
+            message.fetchReply = async () => {return messageResponse;};
+            message.followUp = async (options) => {client.telegram.telegram.sendMessage(message.chat.id, options.content, {parse_mode: 'MarkdownV2'});};
+            message.deleteReply = async () => {client.telegram.telegram.deleteMessage(messageResponse.chat.id, messageResponse.message_id);};
+            
+            function removeLastInstance(badtext, str) {
+                var charpos = str.lastIndexOf(badtext);
+                if (charpos<0) return str;
+                ptone = str.substring(0,charpos);
+                pttwo = str.substring(charpos+(badtext.length));
+                return (ptone+pttwo);
+            }
+
+            message.editReply = async (content) => {
+                // if content is an object
+                if(typeof content == 'object') {
+                    // if we detect embeds, we convert them to telegram format
+                    if(content?.embeds?.length > 0) {
+                        // new content
+                        let newcontent = '';
+                        // for each embed
+                        let i = 0;
+                        for(let embed of content.embeds) {
+                            i++;
+                            embed = embed.data;
+                            // add author
+                            if(embed.author?.name) newcontent += `**${embed.author.name}**\n\n`;
+                            // add title
+                            if(embed.title) newcontent += `**${embed.title}**` + (embed.url ? (embed.url + '\n') : '\n');
+                            // add url
+                            if(embed.url) newcontent += `${embed.url}\n`;
+                            // add description
+                            if(embed.description) newcontent += `${embed.description}\n`;
+                            // add fields
+                            if(embed.fields?.length > 0) {
+                                newcontent += '\n';
+                                for(let field of embed.fields) {
+                                    newcontent += `**${field.name}**\n${field.value}\n`;
+                                }
+                            }
+                            // add footer
+                            if(embed.footer?.text) newcontent += `\n${embed.footer.text}${embed.timestamp ? ' • ' + moment(embed.timestamp).format('DD/MM/YYYY HH:mm:ss') + '\n' : '\n'}`;
+                            // image
+                            if(embed.image?.url) newcontent += `${embed.image.url}\n`;
+                            // thumbnail
+                            //if(embed.thumbnail?.url) newcontent += `${embed.thumbnail.url}\n`;
+                            // remove last '\n'
+                            newcontent = removeLastInstance('\n', newcontent);
+                            // if it is not the last embed, add a line break
+                            if(i != content.embeds.length) newcontent += '\n\n';
+                        }
+                        // replace content
+                        content = (content?.content || '') + '\n' + newcontent;
+                    } else content = (content?.content || '');
                 }
+
+                try{
+                    await client.telegram.telegram.editMessageText(messageResponse.chat.id, messageResponse.message_id, null, content, {parse_mode: 'markdown'});
+                }catch(err){
+                    console.log(`[TELEGRAM] Error while editing message : ${err.message}`.brightRed);
+                    // use editMessageText from telegram bot
+                    try{
+                        await client.telegram.telegram.editMessageText(messageResponse.chat.id, messageResponse.message_id, null, content);
+                    }catch(err){
+                        console.log(`[TELEGRAM] Error (2) while editing message : ${err.message}`.brightRed);
+                        client.telegram.telegram.sendMessage(message.chat.id, 'Une erreur est survenue lors de l\'édition du message. Veuillez réessayer plus tard.', {parse_mode: 'markdown'});
+                    }
+                }
+                // retourner le message de réponse
+                return messageResponse;
+            }
+
+            message.reply = async (content) => {
+                // if content is an object
+                if(typeof content == 'object') {
+                    // if we detect embeds, we convert them to telegram format
+                    if(content?.embeds?.length > 0) {
+                        // new content
+                        let newcontent = '';
+                        // for each embed
+                        for(let embed of content.embeds) {
+                            embed = embed.data;
+                            // add author
+                            if(embed.author?.name) newcontent += `**${embed.author.name}**\n\n`;
+                            // add title
+                            if(embed.title) newcontent += `**${embed.title}**` + (embed.url ? (embed.url + '\n') : '\n');
+                            // add description
+                            if(embed.description) newcontent += `${embed.description}\n`;
+                            // add fields
+                            if(embed.fields?.length > 0) {
+                                newcontent += '\n';
+                                for(let field of embed.fields) {
+                                    newcontent += `**${field.name}**\n${field.value}\n`;
+                                }
+                            }
+                            // add footer
+                            if(embed.footer?.text) newcontent += `\n${embed.footer.text}${embed.timestamp ? ' • ' + moment(embed.timestamp).format('DD/MM/YYYY HH:mm:ss') + '\n' : '\n'}`;
+                            // image
+                            if(embed.image?.url) newcontent += `${embed.image.url}\n`;
+                            // thumbnail
+                            //if(embed.thumbnail?.url) newcontent += `${embed.thumbnail.url}\n`;
+                            // remove last '\n'
+                            newcontent = removeLastInstance('\n', newcontent);
+                        }
+                        // replace content
+                        content = (content?.content || '') + '\n' + newcontent;
+                    } else content = (content?.content || '');
+                }
+                
+                try{
+                    messageResponse = await client.telegram.telegram.sendMessage(message.chat.id, content, {parse_mode: 'markdown'});
+                }catch(err){
+                    console.log(`[TELEGRAM] Error while sending message : ${err.message}`.brightRed);
+                    // use sendMessage from telegram bot
+                    try{
+                        messageResponse = await client.telegram.telegram.sendMessage(message.chat.id, content);
+                    }catch(err){
+                        console.log(`[TELEGRAM] Error (2) while sending message : ${err.message}`.brightRed);
+                        client.telegram.telegram.sendMessage(message.chat.id, 'Une erreur est survenue lors de l\'envoi du message. Veuillez réessayer plus tard.', {parse_mode: 'markdown'});
+                    }
+                }
+                // retourner le message de réponse
+                return messageResponse;
+            }
+            message.deleteToReply = async () => {
+                try{
+                    await client.telegram.telegram.deleteMessage(message.chat.id, message.message.message_id);
+                }catch(err){}
+                return true;
             }
 
             // Si la commande ne doit pas être exécutée en message privé, mais qu'on est en message privé
-            if(command?.data?.dm_permission == false // Si la commande ne doit pas être exécutée en message privé
-                && (
-                    message.channel.type == 1 // Si on est en dm
-                    || message.channel.type == 3 // Si on est en dm
-                )
-            ){
+            if(command?.data?.dm_permission == false && command.telegram != "enabled") {
                 return message.reply({
                     embeds: [
                         new EmbedBuilder()
                         .setTitle("Salon invalide")
-                        .setDescription(`Vous ne pouvez pas exécuter cette commande en message privée. Réessayer depuis un serveur.`)
+                        .setDescription(`Vous ne pouvez pas exécuter cette commande en message privée (Sur Discord), il est donc impossible de l'utiliser sur telegram. Réessayer depuis un serveur.`)
                         .setColor(client.embedcolor)
                     ]
                 })
             }
 
-            // Vérifier les permissions de l'utilisateur
-            if(command?.data?.default_member_permissions){
-                // Obtenir les permissions de la commande (default_member_permissions)
-                var permissions = new PermissionsBitField(command?.data?.default_member_permissions)
-
-                // Vérifier les permissions si on est pas en dm
-                if(message.channel.type != 1 // Si on est pas en dm
-                    && message.channel.type != 3 // Si on est pas en dm
-                    && !message?.guild?.members?.cache?.get(message.author.id)?.permissions?.has(permissions) // Si on a pas les permissions
-                ) {
-                    var array = permissions.toArray()
-                    return message.reply({
-                        embeds: [
-                            new EmbedBuilder()
-                            .setTitle("Permissions insuffisantes")
-                            .setDescription(`Vous n'avez pas ${array.length > 1 ? 'les' : 'la'} permission${array.length > 1 ? 's' : ''} nécessaire${array.length > 1 ? 's' : ''} pour exécuter cette commande. Vous devez avoir ${array.length > 1 ? 'les' : 'la'} permission${array.length > 1 ? 's' : ''} suivante${array.length > 1 ? 's' : ''} : \`${array.join(', ')}\``)
-                            .setColor(client.embedcolor)
-                        ]
-                    })
-                }
-            }
-
-            // Préparer la variable qui contiendra le message de réponse
-            var messageResponse;
-
             // Fonction pour dire que la méthode voulue n'existe pas
             async function methodNotExists(message, method){
                 if(messageResponse) {
-                    messageResponse.edit(`La méthode \`${method}\` n'est pas disponible dans cet environnement. Demander au créateur de ce module de porter la méthode dans le type d'environnement \`text command\`.`)
+                    message.editReply(`La méthode \`${method}\` n'est pas disponible dans cet environnement. Demander au créateur de ce module de porter la méthode dans le type d'environnement \`text command\`.`)
                 } else {
                     message.reply(`La méthode \`${method}\` n'est pas disponible dans cet environnement. Demander au créateur de ce module de porter la méthode dans le type d'environnement \`text command\`.`)
                     throw new Error('Méthode non disponible dans cette environnement.')
                 }
             }
 
-            // Modifier le message pour qu'il ressemble un peu plus à une interaction
-            message.user = message.author;
-            message.sourceType = 'textCommand';
-            message.options = {};
-            message.awaitModalSubmit = () => methodNotExists(message, 'awaitModalSubmit');
-            message.showModal = () => methodNotExists(message, 'showModal');
-            message.deferReply = async (options) => {
-                if(options?.ephemeral) {
-                    messageResponse = await message.user.send('Veuillez patienter pendant l\'exécution de la commande...');
-                } else {
-                    
-                    messageResponse = await message.reply('Veuillez patienter pendant l\'exécution de la commande...');
-                }
-                return messageResponse;
-            }
-            message.fetchReply = async () => {return messageResponse;};
-            message.followUp = async (options) => {messageResponse.send(options);};
-            message.deleteReply = async () => {messageResponse.delete();};
-            message.editReply = async (content) => {
-                // Si on peut modifier le message, le modifier
-                if(messageResponse?.editable){
-                    if(!content?.content) content.content = "​";
-                    await messageResponse.edit(content);
-                } else {
-                    // Sinon, on vérifie qu'on peut le supprimer (et si oui, on le fait)
-                    if(messageResponse?.deletable) await messageResponse.delete();
-                    messageResponse = await message.reply(content);
-                }
-            }
-            message.reply = async (content) => {
-                // sauvegarder le nouveau message de réponse
-                messageResponse = await message.channel.send(content);
-                // retourner le message de réponse
-                return messageResponse;
-            }
-            message.deleteToReply = async () => {
-                // Supprimer le message de l'utilisateur
-                await message.delete();
-            }
+            // Préparer la variable qui contiendra le message de réponse
+            var messageResponse = {};
             
             let options = command.data.options;
 
@@ -180,14 +402,14 @@ module.exports = {
             // check if one of the options is a subcommand group (has options)
             let hasSubcommandGroup = options.filter(option => option.options != undefined && option.options.filter(suboption => suboption.options != undefined).length > 0).length > 0;
             if(hasSubcommandGroup) hasSubcommand = false;
-            
-            // Obtenir les arguments à partir du contenu du message
-            var args = message.content.replace(prefix + ' ', '');
-            // Si ça commence par le préfixe, on l'enlève
-            if(args.startsWith(prefix)) args = args.replace(prefix, '');
-            // Enlever le nom de la commande des arguments
-            if(args.startsWith(commandName + ' ')) args = args.replace(commandName + ' ', ''); else args = args.replace(commandName, '');
 
+            // Obtenir les arguments à partir du contenu du message
+            var args = message.content
+                .replace(`/${isStart ? "start" : commandName}${'@' + otherme.username} `, '')
+                .replace(`/${isStart ? "start" : commandName}${'@' + otherme.username}`, '')
+                .replace(`/${isStart ? "start" : commandName} `, '')
+                .replace(`/${isStart ? "start" : commandName}`, '');
+            
             // verifier si le message contient une des sous-commande (sinon, renvoyer une erreur)
             let SubcommandError = true;
             if(hasSubcommand) {
@@ -491,32 +713,29 @@ module.exports = {
                 } else {
                     // Si l'options est requise, vérifier qu'on ai entrer quelque chose
                     if(option.required){
-                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` n'est pas spécifié dans la commande que vous venez d'exécuter. Veuillez utiliser la commande comme ça : \`${prefix}${commandName} ${hasSubcommand ? (subcommand + ' '):''}${hasSubcommandGroup ? (subcommandGroup + ' ' + subcommand + ' '):''}${options.filter(op => op.required).map(op => `${op.name}:<un contenu>`).join(', ')}\``;
+                        stop = true; stopreason = `L'argument \`${option.name.replace(/`/g, ' `')}\` n'est pas spécifié dans la commande que vous venez d'exécuter. Veuillez utiliser la commande comme ça : \`/${commandName} ${hasSubcommand ? (subcommand + ' '):''}${hasSubcommandGroup ? (subcommandGroup + ' ' + subcommand + ' '):''}${options.filter(op => op.required).map(op => `${op.name}:<un contenu>`).join(', ')}\``;
                     }
                 }
             }
+            message.telegram = true;
             // Si on a pas rempli toutes les options requises, annuler la commande
             if(stop == true) {
                 message.reply({ embeds: [new EmbedBuilder().setTitle("Commande annulée").setDescription(stopreason).setColor("#ff0000")] });
-                return console.log(("[MESSAGE] Commande executée par " + message.author.username + " (" + message.author.id + ") annulée car un argument était invalide.").yellow);
+                return console.log(("[MESSAGE] Commande Telegram executée par " + message.author.username + " (" + message.author.id + ") annulée car un argument était invalide.").yellow);
             }
             // Exécuter la commande
             try {
                 await client.textcommands.get(commandName).execute(message);
-                if(message.channel.type != 1 && message.channel.type != 3) console.log(`[MESSAGE] Commande ${commandName} exécutée avec succès par ${message.author.username} (${message.author.id}) sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id})`.brightGreen);
-                else if(message.channel.type == 1) console.log(`[MESSAGE] Commande ${commandName} exécutée avec succès par ${message.author.username} (${message.author.id}) en message privé`.brightGreen);
-                else if(message.channel.type == 3) console.log(`[MESSAGE] Commande ${commandName} exécutée avec succès par ${message.author.username} (${message.author.id}) en message privé dans le groupe ${message.channel?.name ? message.channel.name : message.channel.recipients.map(user => user.username).join(', ')} (${message.channel.id})`.brightGreen);
+                console.log(`[MESSAGE] Commande Telegram ${commandName} exécutée avec succès par ${message.author.username} (${message.author.id}) sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id})`.brightGreen);
             } catch (error){
                 message.reply({ embeds: [new EmbedBuilder().setTitle("Une erreur est survenue").setDescription("Une erreur est survenue lors de l'exécution de la commande, veuillez contacter un administrateur.").setColor("#ff0000")] });
-                if(message.channel.type != 1 && message.channel.type != 3) {
-                    console.log(`[ERROR] Commande ${commandName} exécutée par ${message.author.username} (${message.author.id} sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id}) a échoué`.brightRed);
-                } else if(message.channel.type == 1) {
-                    console.log(`[ERROR] Commande ${commandName} exécutée par ${message.author.username} (${message.author.id}) en message privé a échoué`.brightRed);
-                } else if(message.channel.type == 3) {
-                    console.log(`[ERROR] Commande ${commandName} exécutée par ${message.author.username} (${message.author.id}) en message privé dans le groupe ${message.channel?.name ? message.channel.name : message.channel.recipients.map(user => user.username).join(', ')} (${message.channel.id}) a échoué`.brightRed);
-                }
+                console.log(`[ERROR] Commande Telegram ${commandName} exécutée par ${message.author.username} (${message.author.id} sur ${message.guild.name} (${message.guild.id}) dans le salon ${message.channel.name} (${message.channel.id}) a échoué`.brightRed);
                 console.log(error);
             }
-        });
+        }
+
+        // lance le bot telegram
+        client.telegram.launch();
+        console.log('[TELEGRAM] Telegram bot started'.brightGreen);
     }
 }

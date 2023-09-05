@@ -1,4 +1,4 @@
-// ping command module to be used in index.js
+// Cette commande est une honte, mais bon c'était pour tester les subcommands et subcommandgroups donc bon
 
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
@@ -40,7 +40,7 @@ module.exports = {
                 .setDescription('Un prout qui fait peu de bruit, personne ne le remarquera')
             )
         ),
-    category: 'incroyable',
+    category: 'fun',
     async execute(interaction){
         await interaction.deferReply();
         // retrouve le type de prout
