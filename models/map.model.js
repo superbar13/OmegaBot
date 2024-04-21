@@ -74,6 +74,7 @@ MapSchema.statics.GetMap = async function () {
     // get all chunks
     let chunks = await Map.find({});
     console.log("Map fetched (for getting).");
+    
     // create a new object
     let object = {
         chunks: []

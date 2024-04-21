@@ -132,98 +132,155 @@ module.exports = {
             }
 
             // check if the module exists
-            if(!interaction.client.modules[modulestring] && !Object.entries(interaction.client.modules).find(([key, value]) => value.showname == modulestring)) {
-                return interaction.editReply({ content: 'Le module n\'existe pas !', ephemeral: true });
-            } else {
-                // get module REAL name (not displayname) (key of the module in the collection)
-                if(!interaction.client.modules[modulestring]) modulestring = Object.keys(interaction.client.modules).find(key => interaction.client.modules[key].showname == modulestring);
-            }
+            if(!interaction.client.modules[modulestring]
+                && !Object.entries(interaction.client.modules).find(([key, value]) => value.showname == modulestring)
+            ) return interaction.editReply({ content: 'Le module n\'existe pas !', ephemeral: true });
+            // get module REAL name (not displayname) (key of the module in the collection)
+            else if(!interaction.client.modules[modulestring])
+                modulestring = Object.keys(interaction.client.modules).find(key => interaction.client.modules[key].showname == modulestring);
 
             // we find the module
             let module = interaction.client.modules[modulestring] || Object.entries(interaction.client.modules).find(([key, value]) => value.showname == modulestring);
-            var config = '';
 
-            if(!module.guildconfig) {
-                return interaction.editReply({ content: 'Le module n\'a pas de configuration serveur !', ephemeral: true });
-            }
+            if(!module.guildconfig) return interaction.editReply({ content: 'Le module n\'a pas de configuration serveur !', ephemeral: true });
 
-            let oldchild = null;
-            // we loop in all config options (module.guildconfig)
-            for(const [key, option] of Object.entries(module.guildconfig)) {
-                // we check if the option is a category
-                if(option.type == 'databasecategory' || option.type == 'databasecategory') {
-                    let server1 = server;
-                    if(option.type == 'databasecategory') {
-                        server1 = server[key];
-                        if(option.showed) config += `\n**__${option.displayname}__** (${key}) - ${option.description}\n`;
-                        if(option.showed && Object.keys(module.guildconfig)[0] == key) config += "\n";
-                    } else {
-                        server1 = server;
-                        config += `\n**__${option.displayname}__** (${key}) - ${option.description}\n`;
-                        if(Object.keys(module.guildconfig)[0] == key) config += "\n";
-                    }
-                    for(const [key2, child] of Object.entries(option.childs)) {
-                        // we check if the option is a data
-                        if(child.type != 'databasecategory' && child.type != 'showedcategory') {
-                            // we add the option to the config string
-                            if(child.type == 'boolean') config += `- ${child.displayname} (${key2}) : ${server1[key2] ? '✅' : '❌'}\n> ${child.description ? (child.description + '\n') : ''}`;
-                            else config += `- ${child.displayname} (${key2}): ${server1[key2] ? server1[key2] : '❌'}\n> ${child.description ? (child.description + '\n') : ''}`;
-                        } else {
-                            if(child.type == 'databasecategory') if(child.showed) config += `\n**${child.displayname}** - ${child.description}\n`;
-                            else config += `\n**${child.displayname}** (${key2}) - ${child.description}\n`;
-                            // we loop in all childs of the category
-                            for(const [key3, child2] of Object.entries(child.childs)) {
-                                // we check if the option is a data
-                                if(child2.type != 'databasecategory' && child2.type != 'showedcategory') {
-                                    if(child.type == 'showedcategory') {
-                                        // we add the option to the config string
-                                        if(child2.type == 'boolean') config += `- ${child2.displayname} (${key3}) : ${server1[key3] ? '✅' : '❌'}\n> ${child2.description ? (child2.description + '\n') : ''}`;
-                                        else config += `- ${child2.displayname} (${key3}) : ${server1[key3] ? server1[key3] : '❌'}\n> ${child2.description ? (child2.description + '\n') : ''}`;
-                                    } else {
-                                        // we add the option to the config string
-                                        if(child2.type == 'boolean') config += `- ${child2.displayname} (${key3}) : ${server1[key2][key3] ? '✅' : '❌'}\n> ${child2.description ? (child2.description + '\n') : ''}`;
-                                        else config += `- ${child2.displayname} (${key3}) : ${server1[key2][key3] ? server1[key2][key3] : '❌'}\n> ${child2.description ? (child2.description + '\n') : ''}`;
-                                    }
-                                }
-                            }
+            // startChars
+            let startChars = ['#', '##', '###', '>', '-', '+', ':', '/', '=', '°'];
+
+            // function getpath
+            function getpath(path, obj) {
+                try{
+                    path = path.replace('[', '.').replace(']', '');
+                    let patharray = path.split('.');
+                    // remove empty strings
+                    patharray = patharray.filter(function (el) {
+                        return el != "";
+                    });
+                    let obj1 = obj;
+                    for(const path1 of patharray){
+                        try{
+                            obj1 = obj1[path1];
+                            if(!obj1) return null;
+                        } catch (error) {
+                            return null;
                         }
                     }
-                } else {
-                    // si l'option précédente est une catégorie ou null on ajoute un saut de ligne
-                    if(oldchild == null || oldchild.type == 'databasecategory' || oldchild.type == 'showedcategory') {
-                        config += '\n';
-                    }
-                    // we add the option to the config string
-                    if(option.type == 'boolean') config += `- ${option.displayname} (${key}) : ${server[key] ? '✅' : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
-                    else config += `- ${option.displayname} (${key}) : ${server[key] ? server[key] : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
+                    return obj1;
+                } catch (error) {
+                    return null;
                 }
-                oldchild = option;
             }
+
+            // function loopConfig
+            function loopConfig(Obj, startChar, level, server, path = '', config = '') {
+                let newconfig = ''+config;
+                for(const [key, option] of Object.entries(Obj)) {
+                    // if it is a category
+                    if(option.type == 'databasecategory') {
+                        // we get the server
+                        let server1 = server[key];
+
+                        // we add the category to the config string
+                        if(option.showed) {
+                            newconfig += `\n${startChar} **__${option.displayname}__** (${key}) - ${option.description}\n`;
+                            if(Object.keys(Obj)[0] == key) newconfig += "\n";
+                        }
+
+                        // loop in the category
+                        newconfig =+ loopConfig(option.childs, startChars[level + 1], level + 1, path, server1, newconfig);
+                    
+                    // if it is a showed category
+                    } else if(option.type == 'showedcategory') {
+                        // we get the server
+                        let server1 = server;
+
+                        // we add the category to the config string
+                        newconfig += `${startChar} **__${option.displayname}__** (${key}) - ${option.description}\n`;
+                        if(Object.keys(Obj)[0] == key) config += "\n";
+
+                        // loop in the category
+                        newconfig =+ loopConfig(option.childs, startChars[level + 1], level + 1, path, server1, newconfig);
+                    }
+
+                    // if it is a data boolean
+                    else if(option.type == 'boolean') config += `${startChar} - ${option.displayname} (${key}) : ${getpath(path + `[${key}]`, server) ? '✅' : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
+
+                    // if it is a data
+                    else newconfig += `${startChar} - ${option.displayname} (${key}) : ${getpath(path + `[${key}]`, server) ? getpath(path + `[${key}]`, server) : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
+                }
+                return newconfig;
+            }
+
+            // we loop in all config options (module.guildconfig)
+            let config = loopConfig(module.guildconfig, startChars[0], 0, server);
+            console.log(config);
+
             // we add the config string to the embed
-            if(config.length <= 1024) {
-                embed.addFields({ name: `${module.showname}`, value: config, inline: false });
-            } else {
-                var i = 0;
-                // we split the config string in multiple parts but we keep the whole option
-                var configarray = config.split('\n');
-                var configstring = '';
-                for(const configpart of configarray) {
-                    if(configstring.length + configpart.length <= 1024) configstring += configpart + '\n';
-                    else {
-                        i++;
-                        if(i == 1) embed.addFields({ name: `${module.showname}`, value: configstring, inline: false });
-                        else embed.addFields({ name: "​", value: configstring, inline: false });
-                        configstring = configpart + '\n';
+            let embeds = [embed];
+            if(config.length <= 1024) embed.addFields({ name: `${module.showname}`, value: config, inline: false });
+            else {
+                // divise into multiple fields of < 1024 characters and < 25 fields (discord limit) and multiple embeds < 5500 characters and < 10 embeds (discord limit)
+                // using embeds array
+                let fields = [];
+                let field = '';
+
+                // we create the first embed
+                let embed = new EmbedBuilder()
+                    .setTitle('Configuration du serveur')
+                    .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                    .setTimestamp();
+
+                // string to check if the embed is full
+                let currentEmbedText = 'Configuration du serveur\n';
+                let currentEmbeds = 0;
+
+                // we loop in all lines of the config string
+                for(const line of config.split('\n')) {
+                    if(field.length + line.length + 1 > 1024) {
+                        fields.push(field);
+                        field = '';
                     }
+                    field += line + '\n';
                 }
-                if(configstring.length > 0) {
-                    i++;
-                    if(i == 1) embed.addFields({ name: `${module.showname}`, value: configstring, inline: false });
-                    else embed.addFields({ name: "​", value: configstring, inline: false });
+                fields.push(field);
+
+                // we loop in all fields
+                for(const field of fields) {
+                    // if the embed is full, we create a new embed
+                    if(currentEmbedText.length + field.length > 5000 || currentEmbeds == 25) {
+                        embeds.push(embed);
+                        currentEmbedText = 'Configuration du serveur\n';
+                        currentEmbeds = 0;
+                        embed = new EmbedBuilder()
+                            .setTitle('Configuration du serveur')
+                            .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                            .setTimestamp();
+                    }
+                    // we add the field to the embed
+                    currentEmbedText += `Suite\n`;
+                    currentEmbedText += field;
+                    currentEmbeds++;
+                    embed.addFields({ name: `Suite`, value: field, inline: false });
+                }
+
+                // we add the last embed to the embeds array
+                embeds.push(embed);
+
+                // if there are more than 10 embeds, we send an error
+                if(embeds.length > 10) return interaction.editReply({ content: 'Une erreur est survenue.', ephemeral: true });
+            }
+
+            // we send the embed
+            let i = 0;
+            for(const embed of embeds) {
+                try{
+                    ++i;
+                    if(i==0) interaction.editReply({ embeds: [embed] });
+                    else interaction.reply({ embeds: [embed] });
+                } catch (error) {
+                    console.log(error);
                 }
             }
-            // we send the embed
-            interaction.editReply({ embeds: [embed] });
         }
         if(interaction.options.getSubcommand() == 'set') {
             const modules = interaction.client.modules;
@@ -242,9 +299,7 @@ module.exports = {
             }
             
             // check if the module has a guildconfig
-            if(!choosenmodule.guildconfig) {
-                return interaction.editReply({ content: `Le module \`${modulename}\` n'a pas de configuration serveur.`, ephemeral: true });
-            }
+            if(!choosenmodule.guildconfig) return interaction.editReply({ content: `Le module \`${modulename}\` n'a pas de configuration serveur.`, ephemeral: true });
 
             // set the variable tosearch to the guildconfig of the module
             let tosearch = choosenmodule.guildconfig;
@@ -262,9 +317,9 @@ module.exports = {
                 let choosencategory = null;
 
                 // check if the option category exists in the module guildconfig
-                if(!tosearch[optioncategory] && !Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)) {
-                    return interaction.editReply({ content: `La catégorie \`${optioncategory}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
-                } else {
+                if(!tosearch[optioncategory] && !Object.entries(tosearch)
+                    .find(([key, value]) => value.displayname == optioncategory)) return interaction.editReply({ content: `La catégorie \`${optioncategory}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
+                else {
                     choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)[1];
                     // get category REAL name (not displayname) (key of the category in the module guildconfig)
                     if(!tosearch[optioncategory]) optioncategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optioncategory);
@@ -282,9 +337,10 @@ module.exports = {
                     let choosensubcategory = null;
 
                     // check if the option subcategory exists in the category
-                    if(!optioncategoryobject.childs[optionsubcategory] && !Object.entries(optioncategoryobject.childs).find(([key, value]) => value.displayname == optionsubcategory)) {
-                        return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` n'existe pas dans la catégorie \`${optioncategory}\` du module \`${modulename}\`.`, ephemeral: true });
-                    } else {
+                    if(!optioncategoryobject.childs[optionsubcategory]
+                        && !Object.entries(optioncategoryobject.childs).find(([key, value]) => value.displayname == optionsubcategory)
+                    ) return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` n'existe pas dans la catégorie \`${optioncategory}\` du module \`${modulename}\`.`, ephemeral: true });
+                    else {
                         choosensubcategory = optioncategoryobject.childs[optionsubcategory] || Object.entries(optioncategoryobject.childs).find(([key, value]) => value.displayname == optionsubcategory)[1];
                         // get subcategory REAL name (not displayname) (key of the subcategory in the category)
                         if(!optioncategoryobject.childs[optionsubcategory]) optionsubcategory = Object.keys(optioncategoryobject.childs).find(key => optioncategoryobject.childs[key].displayname == optionsubcategory);
@@ -307,9 +363,10 @@ module.exports = {
             let choosenoption = null;
 
             // check if the option name exists in the tosearch object
-            if(!tosearch[optionname] && !Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)) {
-                return interaction.editReply({ content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
-            } else {
+            if(!tosearch[optionname] &&
+                !Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)
+            ) return interaction.editReply({ content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
+            else {
                 choosenoption = tosearch[optionname] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)[1];
                 // get option REAL name (not displayname) (key of the option in the tosearch object)
                 if(!tosearch[optionname]) optionname = Object.keys(tosearch).find(key => tosearch[key].displayname == optionname);

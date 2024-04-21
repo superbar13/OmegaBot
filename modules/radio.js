@@ -1,6 +1,7 @@
 const { VoiceConnectionStatus, getVoiceConnection, demuxProbe, joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, StreamType } = require('@discordjs/voice');
 const fetch = require('node-fetch');
 const { ActivityType } = require('discord.js');
+const isOnline = require('is-online');
 
 module.exports = {
     name: 'radio',
@@ -307,39 +308,44 @@ module.exports = {
                             // Seems to be reconnecting to a new channel - ignore disconnect
                             console.log((`[RADIO] (VOICE) ${guild.name} The bot is reconnecting to the channel`).brightBlue);
                         } catch (error) {
-                            // Seems to be a real disconnect which SHOULDN'T be recovered from
-                            try{
-                                await client.serversdb.bulkWrite([
-                                    client.bulkutility.setField({
-                                        'id': guild.id
-                                    }, {
-                                        'voiceconfig.playing': false,
-                                        'voiceconfig.type': 'none'
-                                    })
-                                ])
-                            }catch(err){console.log(err);}
-                            console.log((`[RADIO] (VOICE) ${guild.name} The bot has been disconnected`).brightBlue);
-                            // remove the player
-                            try{
-                                if(player) {
-                                    console.log(`[RADIO] (VOICE) ${guild.name} A player was found, stopping it...`.brightRed);
-                                    player.removeAllListeners();
-                                    player.stop();
-                                    client.players.delete(guild.id);
-                                }
-                            }catch(err){console.log(err);}
-                            try{
-                                if(response) {
-                                    console.log(`[RADIO] (VOICE) ${guild.name} A response was found, destroying it...`.brightRed);
-                                    response.abort();
-                                    client.responses.delete(guild.id);
-                                }
-                            }catch(err){console.log(err);}
-                            let connection = getVoiceConnection(guild.id);
-                            try{
-                                if(connection) connection.destroy();
-                            }catch(err){console.log(err);}
-                            return false;
+                            if(await isOnline()) {
+                                // Seems to be a real disconnect which SHOULDN'T be recovered from
+                                try{
+                                    await client.serversdb.bulkWrite([
+                                        client.bulkutility.setField({
+                                            'id': guild.id
+                                        }, {
+                                            'voiceconfig.playing': false,
+                                            'voiceconfig.type': 'none'
+                                        })
+                                    ])
+                                }catch(err){console.log(err);}
+                                console.log((`[RADIO] (VOICE) ${guild.name} The bot has been disconnected`).brightBlue);
+                                // remove the player
+                                try{
+                                    if(player) {
+                                        console.log(`[RADIO] (VOICE) ${guild.name} A player was found, stopping it...`.brightRed);
+                                        player.removeAllListeners();
+                                        player.stop();
+                                        client.players.delete(guild.id);
+                                    }
+                                }catch(err){console.log(err);}
+                                try{
+                                    if(response) {
+                                        console.log(`[RADIO] (VOICE) ${guild.name} A response was found, destroying it...`.brightRed);
+                                        response.abort();
+                                        client.responses.delete(guild.id);
+                                    }
+                                }catch(err){console.log(err);}
+                                let connection = getVoiceConnection(guild.id);
+                                try{
+                                    if(connection) connection.destroy();
+                                }catch(err){console.log(err);}
+                                return false;
+                            } else {
+                                // Internet is shut down, the bot will reconnect when the internet will be back, so don't do anything
+                                console.log((`[RADIO] (VOICE) ${guild.name} The bot has been disconnected due to internet shutdown`).brightBlue);
+                            }
                         }
                     });
                 } else console.log(`[RADIO] (VOICE) ${guild.name} The bot has already an event for the event VoiceConnectionStatus.Disconnected`.brightBlue);
@@ -464,7 +470,7 @@ module.exports = {
         if(client.config.modules['radio'].addedconfig.status.enabled == true){
             console.log('[RADIO] Le mode status est activé'.brightGreen);
             // STATUS //
-            client.user.setActivity(`${client.prefix}play`, { type: ActivityType.Listening });
+            client.user.setActivity(`${client.prefix}play`, { type: client.config.modules['radio'].addedconfig.status.type });
             
             let iserver = 0;
             async function changestatus() {
@@ -487,7 +493,7 @@ module.exports = {
                             // check if the radio name exists
                             if(name){
                                 // set the activity
-                                client.user.setActivity(`${name} se joue sur un serveur... | ${client.prefix}play`, { type: ActivityType.Listening });
+                                client.user.setActivity(`${name} se joue sur un serveur... | ${client.prefix}play`, { type: client.config.modules['radio'].addedconfig.status.type });
                             } else {
                                 changestatus();
                             }

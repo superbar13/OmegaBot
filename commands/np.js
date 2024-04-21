@@ -37,7 +37,7 @@ module.exports = {
                     .setDescription(`[[🎵 Flux](${radio.url})] | [[📻 Site web](${radio.website})]${radio?.description ? ' | ' + radio.description : ''}`)
                     .addFields(
                         { name: '🌍 Pays', value: `${radio.country}${radio.state ? ` (${radio.state})` : ''}`, inline: true },
-                        { name: '🗣️ Langue', value: radio.language, inline: true },
+                        { name: '🗣️ Langue', value: (radio.language.length > 0) ? radio.language : "Pas de langue", inline: true },
                         { name: '👍 Votes', value: radio.votes.toString(), inline: true },
                         { name: '🎶 Genres', value: radio.genres, inline: true }
                     )

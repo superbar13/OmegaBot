@@ -49,6 +49,7 @@ module.exports = {
     category: 'rpg',
     telegram: 'disabled',
     async execute(interaction){
+        if(!interaction?.client?.RPG) return interaction.reply({ content: '> ❌ Le module est en cours de chargement.'});
         if(!interaction?.client?.config?.modules['rpg']?.enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.'});
 
         // defer reply
@@ -109,7 +110,7 @@ module.exports = {
             async function callback(path, percent) {
                 const embed = new EmbedBuilder()
                     .setTitle('🗺️ Voyage 🗺️')
-                    .setDescription(`Voyage en cours... Actuellement à la zone ${path.x} ${path.y} (${percent}%)`)
+                    .setDescription(`Voyage en cours... Actuellement à la zone ${path.x} ${path.z} (${percent}%)`)
                     .setColor(interaction.client.modules.randomcolor.getRandomColor())
                     .setTimestamp()
                     .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
@@ -121,12 +122,11 @@ module.exports = {
                 // create embed
                 const embed1 = new EmbedBuilder()
                     .setTitle('🗺️ Voyage 🗺️')
-                    .setDescription(`Vous avez voyagé vers la zone ${x} ${y}. Zone de type ${travel.type}.`
-                    + `\nDurant ce voyage vous avez perdu ${travel.eated} points de faim !`)
+                    .setDescription(`Vous avez voyagé vers la zone ${x} ${y}. Zone de type ${travel?.type}.`
+                    + `\nDurant ce voyage vous avez perdu ${travel?.eated} points de faim et ${travel?.watered} points de soif.`)
                     .setColor(interaction.client.modules.randomcolor.getRandomColor())
                     .setTimestamp()
                     .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
-
                 // send embed
                 await interaction.editReply({ embeds: [embed1] });
             }
@@ -154,10 +154,10 @@ module.exports = {
             }
             */
         } else if(subcommand === 'info'){
+            await interaction.editReply({ content: '> ❌ Cette commande est en cours de développement.' });
         } else if(subcommand === 'spawn'){
             // spawn
             const spawn = await interaction.client.RPG.spawn(interaction.user.id);
-
             if(!spawn) return interaction.editReply({ content: '> ❌ Vous avez déjà spawn !' });
 
             // create embed

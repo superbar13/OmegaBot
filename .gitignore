@@ -2,9 +2,4 @@
 /.env
 /package-lock.json
 /config.json
-/keys.js
-newPlayersPerServer.json
 pnpm-lock.yaml
-newplayers.json
-keys.json
-Interserv.json

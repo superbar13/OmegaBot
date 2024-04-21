@@ -1,4 +1,5 @@
 process.setMaxListeners(1000);
+require('events').EventEmitter.prototype._maxListeners = 1000;
 
 const { Client, GatewayIntentBits, PermissionsBitField, Partials, EmbedBuilder, Routes, Collection } = require('discord.js');
 
@@ -93,11 +94,6 @@ client.once('ready', async () => {
 	client.embedcolor = "#3EA9E0";
 	client.owner = process.env.OWNER;
 	client.invite = 'https://discord.com/api/oauth2/authorize?client_id='+client.user.id+'&permissions=8&scope=bot%20applications.commands';
-	
-	client.diezel = require('diezel');
-	let keys = JSON.parse(fs.readFileSync('keys.json'));
-	client.diezel.setKeys(keys);
-	client.diezelClient = new client.diezel.clients.MobileClient();
 
 	// MODULES //
 	client.modules = new Collection();
@@ -177,7 +173,7 @@ client.once('ready', async () => {
 			}
 		}
 		if(process.env.DEBUG_MESSAGES == "true") console.log(`[MODULES] Module ${file} configuré...`.brightBlue);
-						
+		
 		// check if the module is enabled
 		if(!client.config.modules[module.name]?.enabled && module.name) {
 			console.log(`[MODULES] Module ${file} désactivé !`.yellow);
@@ -567,128 +563,6 @@ client.once('ready', async () => {
 		console.log(`[HANDLERS] Handler ${file} chargé !`.brightGreen);
 	}
 	console.log(`[HANDLERS] ${handlersFiles.length} handlers chargés !`.brightGreen);
-
-
-
-
-
-
-	// TO DELETE //
-	// get ./newplayers.json, ./newPlayersPerServer.json and ./Interserv.json
-	let newplayers = JSON.parse(fs.readFileSync('./newplayers.json'));
-	let newPlayersPerServer = JSON.parse(fs.readFileSync('./newPlayersPerServer.json'));
-	let interserv = JSON.parse(fs.readFileSync('./Interserv.json'));
-
-	// loop newplayers with users, if the user is not in the database, add him with his infos
-	// if it exists, update his infos
-	// in newplayers there are .levels with .level and .xp
-	// if a player exist and has a level oldlevel + newlevel and xp oldxp + newxp
-
-	// loop newplayers [key, value]
-	/*for (const [key, value] of Object.entries(newplayers)) {
-		console.log('Updating user '+key);
-		// check if the user exists
-		var user = await client.usersdb.findOne({ id: key });
-		if(!user) {
-			// create the user document
-			await client.usersdb.createModel({
-				id: key,
-			});
-			console.log(`[DATABASE] User ${key} added to database`.brightGreen);
-			// update the user document
-			await client.usersdb.updateOne({ id: key }, { levels: value.levels });
-			console.log(`[DATABASE] User ${key} updated in database`.brightBlue);
-		} else {
-			// update the user document
-			// check if the user has levels
-			if(user.levels && user.levels?.level && user.levels?.xp) {
-				// loop the levels
-				newlevel = user.levels.level + (value.levels?.level || 0);
-				newxp = user.levels.xp + (value.levels?.xp || 0);
-				// update the user document
-				await client.usersdb.updateOne({ id: key }, { levels: { level: newlevel, xp: newxp } });
-				console.log(`[DATABASE] User ${key} updated in database`.brightBlue);
-			} else {
-				// update the user document
-				await client.usersdb.updateOne({ id: key }, { levels: value.levels });
-				console.log(`[DATABASE] User ${key} updated in database`.brightBlue);
-			}
-		}
-	}*/
-
-	// loop newPlayersPerServer [key, value]
-	/*for (const [key, value] of Object.entries(newPlayersPerServer)) {
-		console.log('Updating server '+key);
-		// check if the server exists
-		var server = await client.serversdb.findOne({ id: key });
-		if(!server) {
-			// create the server document
-			await client.serversdb.createModel({
-				id: key
-			});
-			console.log(`[DATABASE] Server ${key} added to database`.brightGreen);
-			// update the server document
-			await client.serversdb.updateOne({ id: key }, { users: value.users });
-			console.log(`[DATABASE] Server ${key} updated in database`.brightBlue);
-		} else {
-			// update the server document
-			// check if the server has users
-			if(server.users && server.users?.length > 0) {
-				// loop the users
-				for (const user of value.users) {
-					console.log('Updating user '+user.id+' in server '+key);
-					// check if the user exists
-					var user1 = server.users.find(u => u.id == user.id);
-					if(!user1) {
-						// add the user to the server document
-						await client.serversdb.updateOne({ id: key }, { $push: { users: user } });
-						console.log(`[DATABASE] User ${user.id} added to server ${key} in database`.brightGreen);
-					} else {
-						// update the user in the server document by user.levels.level + user1.levels.level and user.levels.xp + user1.levels.xp
-						// check if the user has levels
-						if(user1.levels && user1.levels?.level && user1.levels?.xp) {
-							// loop the levels
-							newlevel = user1.levels.level + (user.levels?.level || 0);
-							newxp = user1.levels.xp + (user.levels?.xp || 0);
-							// update the user document
-							await client.serversdb.updateOne({ id: key, "users.id": user.id }, { $set: { "users.$.levels": { level: newlevel, xp: newxp } } });
-							console.log(`[DATABASE] User ${user.id} updated in server ${key} in database`.brightBlue);
-						} else {
-							// update the user document
-							await client.serversdb.updateOne({ id: key, "users.id": user.id }, { $set: { "users.$.levels": user.levels } });
-							console.log(`[DATABASE] User ${user.id} updated in server ${key} in database`.brightBlue);
-						}
-					}
-				}
-			} else {
-				// update the server document
-				await client.serversdb.updateOne({ id: key }, { users: value.users });
-				console.log(`[DATABASE] Server ${key} updated in database`.brightBlue);
-			}
-		}
-	}*/
-	
-	/*// loop interserv [key, value]
-	for (const value of interserv.servers) {
-		// get interserver with "name" OmegaInterserv
-		let interserver = await client.interserversdb.findOne({ name: "OmegaInterserv" });
-		if(interserv) {
-			console.log('Updating Interserv');
-			// update the interserver document
-			// but before check if the server exists, if it exist don't change it
-			if(!interserver.servers.find(s => s.id == value.id)) {
-				await client.interserversdb.updateOne({ name: "OmegaInterserv" }, { $push: { servers: {
-					id: value.id,
-					channel: value.channel,
-					webhook: {
-						id: value.webhook.disid,
-						token: value.webhook.distoken
-					}
-				} } });
-				console.log(`[DATABASE] Server ${value.id} added to interserver in database`.brightGreen);
-			}
-		}
-	}*/
 });
 
 // login to Discord with your app's token

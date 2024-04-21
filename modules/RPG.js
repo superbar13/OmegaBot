@@ -1,6 +1,166 @@
 const fs = require('fs');
-const { createCanvas, loadImage } = require('canvas')
+const { createCanvas, loadImage } = require('@napi-rs/canvas')
 var PF = require('pathfinding');
+let ressources = {
+    mining: {
+        coal: {
+            min: 1,
+            max: 25
+        },
+        iron: {
+            min: 0,
+            max: 17
+        },
+        gold: {
+            min: 0,
+            max: 12
+        },
+        diamond: {
+            min: 0,
+            max: 9
+        },
+        emerald: {
+            min: 0,
+            max: 7
+        },
+        ruby: {
+            min: 0,
+            max: 5
+        },
+        sapphire: {
+            min: 0,
+            max: 4
+        },
+        amethyst: {
+            min: 0,
+            max: 2
+        },
+        uranium: {
+            min: 0,
+            max: 1
+        },
+    },
+    woodcutting: {
+        oak: {
+            min: 5,
+            max: 25
+        },
+        spruce: {
+            min: 2,
+            max: 18
+        },
+        birch: {
+            min: 1,
+            max: 14
+        },
+        jungle: {
+            min: 0,
+            max: 12
+        },
+        acacia: {
+            min: 0,
+            max: 4
+        },
+        darkoak: {
+            min: 1,
+            max: 10
+        },
+        fir: {
+            min: 0,
+            max: 8
+        },
+        pine: {
+            min: 0,
+            max: 6
+        }
+    },
+    farming: {
+        wheat: {
+            min: 8,
+            max: 25
+        },
+        potato: {
+            min: 5,
+            max: 22
+        },
+        carrot: {
+            min: 3,
+            max: 20
+        },
+        strawberry: {
+            min: 0,
+            max: 14
+        },
+        tomato: {
+            min: 0,
+            max: 18
+        },
+        radish: {
+            min: 0,
+            max: 16
+        },
+        apple: {
+            min: 0,
+            max: 24
+        },
+        orange: {
+            min: 0,
+            max: 22
+        },
+        pear: {
+            min: 0,
+            max: 19
+        },
+        banana: {
+            min: 0,
+            max: 17
+        },
+    },
+    fishing: {
+        salmon: {
+            min: 0,
+            max: 24
+        },
+        sea_bream: {
+            min: 0,
+            max: 20
+        },
+    },
+    hunting: {
+        rabbit: {
+            min: 10,
+            max: 12
+        },
+        chicken: {
+            min: 17,
+            max: 20
+        },
+        beef: {
+            min: 0,
+            max: 12
+        },
+        pig: {
+            min: 15,
+            max: 18
+        },
+        sheep: {
+            min: 12,
+            max: 15
+        },
+    }
+}
+
+// ressourcesSchema is ressources but with only type and default in category
+let ressourcesSchema = {};
+for(let category in ressources){
+    ressourcesSchema[category] = {};
+    for(let ressource in ressources[category]){
+        ressourcesSchema[category][ressource] = {
+            type: Number,
+            default: 0
+        }
+    }
+}
 
 module.exports = {
     name: 'rpg',
@@ -30,6 +190,7 @@ module.exports = {
             business: {
                 job: {
                     type: String,
+                    ref: 'Job'
                 },
                 xp: {
                     type: Number,
@@ -56,179 +217,31 @@ module.exports = {
                 type: Number,
                 default: 10
             },
-            clan: {
-                type: String,
-            },
-            ressources: {
-                mining: {
-                    coal: {
-                        type: Number,
-                        default: 0
-                    },
-                    iron: {
-                        type: Number,
-                        default: 0
-                    },
-                    gold: {
-                        type: Number,
-                        default: 0
-                    },
-                    diamond: {
-                        type: Number,
-                        default: 0
-                    },
-                    emerald: {
-                        type: Number,
-                        default: 0
-                    },
-                    ruby: {
-                        type: Number,
-                        default: 0
-                    },
-                    sapphire: {
-                        type: Number,
-                        default: 0
-                    },
-                    amethyst: {
-                        type: Number,
-                        default: 0
-                    },
-                    uranium: {
-                        type: Number,
-                        default: 0
-                    }
-                },
-                woodcutting: {
-                    oak: {
-                        type: Number,
-                        default: 0
-                    },
-                    spruce: {
-                        type: Number,
-                        default: 0
-                    },
-                    birch: {
-                        type: Number,
-                        default: 0
-                    },
-                    jungle: {
-                        type: Number,
-                        default: 0
-                    },
-                    acacia: {
-                        type: Number,
-                        default: 0
-                    },
-                    darkoak: {
-                        type: Number,
-                        default: 0
-                    },
-                    fir: {
-                        type: Number,
-                        default: 0
-                    },
-                    pine: {
-                        type: Number,
-                        default: 0
-                    },
-                },
-                farming: {
-                    wheat: {
-                        type: Number,
-                        default: 0
-                    },
-                    potato: {
-                        type: Number,
-                        default: 0
-                    },
-                    carrot: {
-                        type: Number,
-                        default: 0
-                    },
-                    strawberry: {
-                        type: Number,
-                        default: 0
-                    },
-                    tomato: {
-                        type: Number,
-                        default: 0
-                    },
-                    radish: {
-                        type: Number,
-                        default: 0
-                    },
-                    apple: {
-                        type: Number,
-                        default: 0
-                    },
-                    orange: {
-                        type: Number,
-                        default: 0
-                    },
-                    pear: {
-                        type: Number,
-                        default: 0
-                    },
-                    banana: {
-                        type: Number,
-                        default: 0
-                    },
-                },
-                fishing: {
-                    salmon: {
-                        type: Number,
-                        default: 0
-                    },
-                    sea_bream: {
-                        type: Number,
-                        default: 0
-                    },
-                },
-                hunting: {
-                    rabbit: {
-                        type: Number,
-                        default: 0
-                    },
-                    chicken: {
-                        type: Number,
-                        default: 0
-                    },
-                    cow: {
-                        type: Number,
-                        default: 0
-                    },
-                    pig: {
-                        type: Number,
-                        default: 0
-                    },
-                    sheep: {
-                        type: Number,
-                        default: 0
-                    },
-                    beef: {
-                        type: Number,
-                        default: 0
-                    },
-                }
-            },
+            ressources: ressourcesSchema,
             equipment: {
                 helmet: {
                     type: String,
+                    ref: 'Item'
                 },
                 chestplate: {
                     type: String,
+                    ref: 'Item'
                 },
                 leggings: {
                     type: String,
+                    ref: 'Item'
                 },
                 boots: {
                     type: String,
+                    ref: 'Item'
                 },
                 hand: {
                     type: String, // right hand, can be a sword
+                    ref: 'Item'
                 },
                 otherhand: {
                     type: String, // left hand, can be a shield
+                    ref: 'Item'
                 }
             },
         }
@@ -255,7 +268,22 @@ module.exports = {
                 level: 0.20,
                 rgb: [3, 169, 244],
                 emoji: '💧',
-                time: 200
+                time: 200,
+                disabledRessources: ['mining', 'woodcutting', 'farming', 'hunting'],
+                modifiedRessources: {
+                    fishing: {
+                        salmon: {
+                            min: 10,
+                            max: 30
+                        },
+                        sea_bream: {
+                            min: 7,
+                            max: 25
+                        },
+                    }
+                },
+                foodMultiplier: 0.75,
+                waterMultiplier: 0.75
             },
             {
                 id: 3,
@@ -263,7 +291,10 @@ module.exports = {
                 level: 0.21,
                 rgb: [255, 193, 7],
                 emoji: '🏖️',
-                time: 350
+                time: 350,
+                disabledRessources: ['mining', 'woodcutting', 'farming', 'hunting'],
+                foodMultiplier: 0.55,
+                waterMultiplier: 0.55
             },
             {
                 id: 1,
@@ -271,7 +302,8 @@ module.exports = {
                 level: 0.30,
                 rgb: [64, 154, 67],
                 emoji: '🌱',
-                time: 100
+                time: 100,
+                disabledRessources: ['fishing'],
             },
             {
                 id: 6,
@@ -279,7 +311,68 @@ module.exports = {
                 level: 0.35,
                 rgb: [27, 94, 32],
                 emoji: '🌲',
-                time: 300
+                time: 300,
+                disabledRessources: ['fishing'],
+                modifiedRessources: {
+                    woodcutting: {
+                        oak: {
+                            min: 10,
+                            max: 30
+                        },
+                        spruce: {
+                            min: 7,
+                            max: 25
+                        },
+                        birch: {
+                            min: 5,
+                            max: 20
+                        },
+                        jungle: {
+                            min: 3,
+                            max: 15
+                        },
+                        acacia: {
+                            min: 2,
+                            max: 10
+                        },
+                        darkoak: {
+                            min: 1,
+                            max: 15
+                        },
+                        fir: {
+                            min: 0,
+                            max: 12
+                        },
+                        pine: {
+                            min: 0,
+                            max: 9
+                        }
+                    },
+                    hunting: {
+                        rabbit: {
+                            min: 10,
+                            max: 25
+                        },
+                        chicken: {
+                            min: 7,
+                            max: 20
+                        },
+                        beef: {
+                            min: 5,
+                            max: 15
+                        },
+                        pig: {
+                            min: 3,
+                            max: 10
+                        },
+                        sheep: {
+                            min: 2,
+                            max: 7
+                        },
+                    }
+                },
+                foodMultiplier: 0.85,
+                waterMultiplier: 0.85
             },
             {
                 id: 4,
@@ -287,7 +380,50 @@ module.exports = {
                 level: 0.38,
                 rgb: [74, 48, 39],
                 emoji: '🏔️',
-                time: 400
+                time: 400,
+                disabledRessources: ['woodcutting', 'farming', 'fishing'],
+                modifiedRessources: {
+                    mining: {
+                        coal: {
+                            min: 10,
+                            max: 30
+                        },
+                        iron: {
+                            min: 7,
+                            max: 25
+                        },
+                        gold: {
+                            min: 5,
+                            max: 20
+                        },
+                        diamond: {
+                            min: 3,
+                            max: 15
+                        },
+                        emerald: {
+                            min: 2,
+                            max: 10
+                        },
+                        ruby: {
+                            min: 1,
+                            max: 15
+                        },
+                        sapphire: {
+                            min: 0,
+                            max: 12
+                        },
+                        amethyst: {
+                            min: 0,
+                            max: 9
+                        },
+                        uranium: {
+                            min: 0,
+                            max: 6
+                        },
+                    }
+                },
+                foodMultiplier: 0.65,
+                waterMultiplier: 0.65
             },
             {
                 id: 5,
@@ -295,7 +431,10 @@ module.exports = {
                 level: 1,
                 rgb: [249, 249, 249],
                 emoji: '❄️',
-                time: 500
+                time: 500,
+                disabledRessources: ['fishing'],
+                foodMultiplier: 0.5,
+                waterMultiplier: 0.5
             }
         ]
     },
@@ -442,12 +581,15 @@ module.exports = {
                 let timeout = 0;
                 for(let i = 0; i < path.length; i++){timeout += timeouts[i];}
 
+                // get the actual timestamp
+                let timestamp = Date.now();
                 // start the timeout
                 let finished = false;
                 let interval = setInterval(async () => {
                     finished = true;
+                    let eated = timeout / 1000;
+                    let watered = timeout / 10000;
                     // we are finished, so we can update the user position
-                    /*
                     await client.usersdb.bulkWrite([
                         client.bulkutility.setField({
                             'id': id
@@ -456,34 +598,51 @@ module.exports = {
                             'rpg.position.z': z
                         })
                     ])
+                    /*
+                    await client.usersdb.bulkWrite([
+                        client.bulkutility.incrementField({
+                            'id': id
+                        }, {
+                            'rpg.food': -eated,
+                            'rpg.water': -watered
+                        })
+                    ])
                     */
+
                     // stop the interval
                     clearInterval(interval);
                     // call the finish callback
-                    if(finishcallback) await finishcallback(path[path.length - 1]);
-                    console.log('finished');
+                    if(finishcallback) {
+                        let dataReturn = path[path.length - 1];
+                        let pixel = this.chunkManager.getCoordPixelAndChunk(x, z)?.pixel?.type;
+                        dataReturn.type = this.getPixelType(pixel);
+                        dataReturn.eated = eated;
+                        dataReturn.watered = watered;
+                        await finishcallback(dataReturn);
+                    }
                 }, timeout);
 
                 // each 5 seconds while we are traveling (while finished is false), we update the user position
                 while(!finished) {
-                    console.log('not finished');
                     // get the timeout done
-                    let timeoutdone = interval._idleStart + interval._idleTimeout - Date.now();
+                    let timeoutdone = Date.now() - timestamp;
                     // check at which pixel we are
                     let i = 0;
+                    let timeout2 = 0;
                     for(let timeout1 of timeouts){
-                        i++;
+                        timeout2 += timeout1;
                         // if the timeout done is less than the timeout of the pixel, we are at this pixel
-                        if(timeoutdone < timeout1){
+                        if(timeoutdone < timeout2){
                             // we are at this pixel
                             if(timeoutdone == timeout) break;
                             // update the callback
-                            await updatefunction(path[i - 1], Math.floor((timeoutdone / timeout) * 100));
+                            await updatefunction(path[i], Math.floor((timeoutdone / timeout) * 100));
                             break;
                         }
+                        i++;
                     }
                     // wait 5 seconds
-                    await new Promise((resolve) => setTimeout(resolve, 5000));
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
                 }
 
                 // true
@@ -497,16 +656,40 @@ module.exports = {
                 if(!user || !user?.rpg || !user?.rpg?.position || !user?.rpg?.position?.x || !user?.rpg?.position?.z) return false;
                 console.log(`[GPS] L'utilisateur ${user.id} existe`);
 
-                // get the pixel and chunk
-                console.log(`[GPS] Récupération du chunk et du pixel`);
-                let pixelAndChunk = this.chunkManager.getCoordPixelAndChunk(x, z);
+                // VERIFICATIONS COORDONNEES ET EXISTANCES
+                // get min and max coords
+                console.log(`[GPS] Récupération des min et max coords`);
+                let minmax = this.chunkManager.getMinMaxCoords();
+                console.log(`[GPS] Les min et max coords ont été récupérées`);
 
-                // if the pixel and chunk doesn't exist, return false
+                // check if x and y are valid
+                console.log(`[GPS] Vérification de la validité des coords`);
+                if(x < minmax.minx || x > minmax.maxx || z < minmax.minz || z > minmax.maxz) return false;
+                console.log(`[GPS] Les coords sont valides`);
+
+                // check if user x and y are valid
+                console.log(`[GPS] Vérification de la validité des coords de l'utilisateur`);
+                if(user.rpg.position.x < minmax.minx || user.rpg.position.x > minmax.maxx || user.rpg.position.z < minmax.minz || user.rpg.position.z > minmax.maxz) return false;
+                console.log(`[GPS] Les coords de l'utilisateur sont valides`);
+
+                // get the pixel and chunk
+                console.log(`[GPS] Récupération et vérification du chunk et du pixel`);
+                let pixelAndChunk = this.chunkManager.getCoordPixelAndChunk(x, z);
                 if(!pixelAndChunk) return false;
                 console.log(`[GPS] Le chunk et le pixel existent`);
+                // verification de si on veut pas se déplacer sur de l'eau
+                if(pixelAndChunk.pixel.type == 2 && !bypass) return false;
+                console.log(`[GPS] Le pixel n'est pas de l'eau ou bien on a le baetau bypass`);
 
+                // get the pixel and chunk of the user
+                console.log(`[GPS] Récupération et vérification du chunk et du pixel de l'utilisateur`);
+                let userPixelAndChunk = this.chunkManager.getCoordPixelAndChunk(user.rpg.position.x, user.rpg.position.z);
+                if(!userPixelAndChunk) return false;
+                console.log(`[GPS] Le chunk et le pixel de l'utilisateur existent`);
+
+                // SUITE APRES LES VERIFS
                 // get the line path between the two points (ALL THE PIXELS)
-                console.log(`[GPS] Récupération du chemin`);
+                console.log(`[GPS] Récupération du chemin (simple)`);
                 let linepath = this.getLinePath(user.rpg.position.x, user.rpg.position.z, x, z);
                 if(!linepath) return false;
                 console.log(`[GPS] Le chemin a été récupéré`);
@@ -518,22 +701,26 @@ module.exports = {
                     if(pixel.pixel.type == 2) {
                         water = true;
                         console.log(`[GPS] Il y a de l'eau`);
-                    } else console.log(`[GPS] Il n'y a pas d'eau`);
-                    break;
+                        break;
+                    }
                 }
 
                 // if we don't have water, we can travel
                 if(!water) {
-                    console.log(`[GPS] Le GPS est terminé`);
+                    console.log(`[GPS] Le GPS est terminé sans bateau`);
                     return linepath;
                 }
                 
                 // if we have water and we don't have a boat
                 if(bypass) {
-                    console.log(`[GPS] Le GPS est terminé`);
+                    console.log(`[GPS] Avec le bypass, on peut prendre un bateau donc le chemin en ligne droite est possible`);
                     return linepath;
                 }
 
+                // if we have water and we don't have a boat, we need to bypass the water
+                console.log(`[GPS] Il y a de l'eau, on va donc contourner et prendre 10 fois plus de temps`);
+
+                // create the pathfinder
                 console.log(`[GPS] Création du pathfinder`);
                 var finder = new PF.AStarFinder(
                     {
@@ -542,17 +729,19 @@ module.exports = {
                     }
                 );
                 console.log(`[GPS] Le pathfinder a été créé`);
-
-                // get min and max coords
-                console.log(`[GPS] Récupération des min et max coords`);
-                let minmax = this.chunkManager.getMinMaxCoords();
-                console.log(`[GPS] Les min et max coords ont été récupérées`);
-
+                
                 // getMatrix
                 console.log(`[GPS] Récupération de la matrice`);
-                let matrix = this.getMatrix();
+                let matrix = this.getMatrix(minmax);
                 console.log(`[GPS] La matrice a été récupérée`);
-                console.log(matrix);
+
+                // verifications des différentes coordonnées dans la matrice
+                console.log(`[GPS] Vérification des différentes coordonnées début et fin dans la matrice`);
+                if(user.rpg.position.x - minmax.minx < 0 || user.rpg.position.x - minmax.minx > matrix.length) {console.log(`[GPS] La coordonnée x de l'utilisateur n'est pas dans la matrice : ${user.rpg.position.x - minmax.minx} > ${matrix.length}`); return false;}
+                if(user.rpg.position.z - minmax.minz < 0 || user.rpg.position.z - minmax.minz > matrix[0].length) {console.log(`[GPS] La coordonnée z de l'utilisateur n'est pas dans la matrice : ${user.rpg.position.z - minmax.minz} > ${matrix[0].length}`); return false;}
+                if(x - minmax.minx < 0 || x - minmax.minx > matrix.length) {console.log(`[GPS] La coordonnée x de la destination n'est pas dans la matrice : ${x - minmax.minx} > ${matrix.length}`); return false;}
+                if(z - minmax.minz < 0 || z - minmax.minz > matrix[0].length) {console.log(`[GPS] La coordonnée z de la destination n'est pas dans la matrice : ${z - minmax.minz} > ${matrix[0].length}`); return false;}
+                console.log(`[GPS] Les différentes coordonnées début et fin sont dans la matrice`);
 
                 // use the matrix to create the grid
                 console.log(`[GPS] Création de la grille`);
@@ -561,14 +750,20 @@ module.exports = {
 
                 // get the path
                 console.log(`[GPS] Récupération du path`);
-                var path = finder.findPath(
-                    user.rpg.position.x - minmax.minx, user.rpg.position.z - minmax.minz, // start
-                    x - minmax.minx, z - minmax.minz, grid // end
-                );
+                try{
+                    var path = finder.findPath(
+                        user.rpg.position.x - minmax.minx, user.rpg.position.z - minmax.minz, // start
+                        x - minmax.minx, z - minmax.minz, // end
+                        grid // grid
+                    );
+                }catch(err){console.log(`[GPS] Catastrophe, le pathfinder a crashé : ${err.stack}`); return false;}
                 console.log(`[GPS] Le path a été récupéré`);
 
                 // if we don't have a path, return false
-                if(!path) return false;
+                if(!path || path.length == 0) {
+                    console.log(`[GPS] Aucun chemin n'a été trouvé`);
+                    return false;
+                }
 
                 // transform the coords to the real coords
                 console.log(`[GPS] Transformation des coords`);
@@ -580,34 +775,37 @@ module.exports = {
                     });
                 }
                 console.log(`[GPS] Les coords ont été transformées`);
-                console.log(finalpath);
 
                 // get the line path between the two points (ALL THE PIXELS)
-                console.log(`[GPS] Récupération du chemin`);
+                console.log(`[GPS] Récupération du chemin (complexe)`);
                 let finalLinePath = [];
-                for(let coords of finalpath){
+                for(let i = 0; i < finalpath.length; i++){
+                    if(i+1 >= finalpath.length) break;
+
+                    let coords1 = finalpath[i];
+                    let coords2 = finalpath[i + 1];
+
                     // get the paths between the two points
-                    let linepath = this.getLinePath(user.rpg.position.x, user.rpg.position.z, coords.x, coords.z);
+                    let linepath = this.getLinePath(coords1.x, coords1.z, coords2.x, coords2.z);
                     if(!linepath) return false;
 
                     // add the paths to the final path
                     for(let pixel of linepath){ finalLinePath.push(pixel); }
-
-                    // remove the duplicates
-                    finalLinePath = finalLinePath.filter((element, index, array) => {
-                        return array.findIndex((element2) => element2.x == element.x && element2.z == element.z) == index;
-                    });
                 }
 
+                // remove the duplicates
+                finalLinePath = finalLinePath.filter((element, index, array) => {
+                    return array.findIndex((element2) => element2.x == element.x && element2.z == element.z) == index;
+                });
+
                 console.log(`[GPS] Le chemin a été récupéré`);
-                console.log(finalLinePath);
                 // now we can travel
 
-                console.log(`[GPS] Le GPS est terminé`);
+                console.log(`[GPS] Le GPS est terminé avec succès en contournant l'eau`);
                 return finalLinePath;
             }
 
-            getMatrix() {
+            getMatrix(minmax){
                 // create the matrix of the map
                 // in the matrix, there are arrays which are for each x, and in each array there are 0 and 1, 1 for water and 0 for land
                 let matrix = [];
@@ -621,19 +819,22 @@ module.exports = {
 
                     for(let x = 0; x < this.chunkManager.chunksize; x++){
                         // if the x is not in the render distance, continue
-                        if(chunkX + x < 0 || chunkX + x > this.chunkManager.chunksize * this.loadDistance) continue;
+                        //if(chunkX + x < 0 || chunkX + x > this.chunkManager.chunksize * this.loadDistance) continue;
+                        
                         // if the x doesn't exist in the matrix, create it
                         if(!matrix[chunkX + x]) matrix[chunkX + x] = [];
                         for(let z = 0; z < this.chunkManager.chunksize; z++){
                             // if the z is not in the render distance, continue
-                            if(chunkZ + z < 0 || chunkZ + z > this.chunkManager.chunksize * this.loadDistance) continue;
+                            //if(chunkZ + z < 0 || chunkZ + z > this.chunkManager.chunksize * this.loadDistance) continue;
+
                             // if the z doesn't exist in the matrix, create it
                             if(!matrix[chunkX + x][chunkZ + z]) matrix[chunkX + x][chunkZ + z] = 0;
                             // if the pixel is water, set the value to 1
-                            if(chunk.pixels[x][z].type == 2) matrix[chunkX + x][chunkZ + z] = 1;
+                            if(chunk.pixels[z * this.chunkManager.chunksize + x].type == 2) matrix[chunkX + x][chunkZ + z] = 1;
                         }
                     }
                 }
+                return matrix;
             }
 
             // get the line path between two points
@@ -1171,15 +1372,17 @@ module.exports = {
                             if(player.x < 0 || player.z < 0 || player.x > this.canvas.width || player.z > this.canvas.height) continue;
 
                             // define the height and width of the player
-                            let height = 10;
-                            let width = 10;
+                            let height = 11;
+                            let width = 11;
+                            let heightpos = height-1;
+                            let widthpos = width-1;
                             let font = (height + width) / 2 + 10;
 
                             // create an opaque white overlay, the player x and y is the center of the player
                             this.context.fillStyle = "rgba(255, 255, 255, 1)";
                             this.context.fillRect(
-                                player.x - width / 2, // x
-                                player.z - height / 2, // y
+                                player.x - heightpos / 2, // x
+                                player.z - widthpos / 2, // y
                                 width, // width
                                 height // height
                             );
@@ -1187,8 +1390,8 @@ module.exports = {
                             // create an opaque red overlay, the player x and y is the center of the player
                             this.context.fillStyle = "rgba(255, 0, 0, 1)";
                             this.context.fillRect(
-                                player.x - (width-2) / 2, // x
-                                player.z - (height-2) / 2, // y
+                                player.x - (heightpos-2) / 2, // x
+                                player.z - (widthpos-2) / 2, // y
                                 width-2, // width
                                 height-2 // height
                             );
@@ -1341,32 +1544,41 @@ module.exports = {
             PixelType
         );
 
-        // load model
-        client.mapdb = require('../models/map.model');
+        async function start(){
+            // add ressources to app
+            app.resources = ressources;
 
-        // load mappoints model
-        client.mappointsdb = require('../models/mappoints.model');
+            // load model
+            client.mapdb = require('../models/map.model');
 
-        // load data from database
-        let data = await client.mapdb.GetMap();
-        
-        // if the map exists, load it
-        if(data) {
-            // load the data
-            app.load(data);
+            // load mappoints model
+            client.mappointsdb = require('../models/mappoints.model');
+
+            // load jobsdb model
+            client.jobsdb = require('../models/jobs.model');
+
+            // load clansdb model
+            client.clansdb = require('../models/clans.model');
+
+            // load data from database
+            let data = await client.mapdb.GetMap();
+            
+            // if the map exists, load it
+            if(data) app.load(data);
+            
+            // generate the map
+            app.run();
+
+            // if the map doesn't exists, save it
+            if(!data) {
+                // get data
+                data = app.save();
+                // save data to database
+                client.mapdb.SaveMap(data);
+            }
+
+            client.RPG = app;
         }
-        
-        // generate the map
-        app.run();
-
-        // if the map doesn't exists, save it
-        if(!data) {
-            // get data
-            data = app.save();
-            // save data to database
-            client.mapdb.SaveMap(data);
-        }
-
-        client.RPG = app;
+        start();
     }
 }

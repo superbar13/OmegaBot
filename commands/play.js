@@ -7,8 +7,6 @@ const fetch = require('node-fetch');
 var internetradio = require('node-internet-radio');
 const { countryCodeEmoji, emojiCountryCode } = require('country-code-emoji');
 const {PermissionsBitField} = require('discord.js');
-var Deezer = require("deezer-web-api");
-var DeezerClient = new Deezer();
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -28,8 +26,6 @@ module.exports = {
         .setDMPermission(false),
     category: 'music',
     async execute(interaction){
-        const { ImageUrl, SongAsset, SongLegacyFormat  } = interaction.client.diezel.content;
-
         // check if subcommand is radio
         if(interaction.options.getSubcommand() == 'radio'){
             if(!interaction.client.config.modules['radio'].enabled) return interaction.reply({ content: '> ❌ Le module radio est désactivé.'});
@@ -310,7 +306,7 @@ module.exports = {
                     .setDescription(`Radio Lancée !\n[[🎵 Flux](${radio.url})] | [[📻 Site web](${radio.website})]${radio?.description ? ' | ' + radio.description : ''}`)
                     .addFields(
                         { name: '🌍 Pays', value: `${radio.country}${radio.state ? ` (${radio.state})` : ''}`, inline: true },
-                        { name: '🗣️ Langue', value: radio.language, inline: true },
+                        { name: '🗣️ Langue', value: (radio.language.length > 0) ? radio.language : "Pas de langue", inline: true },
                         { name: '👍 Votes', value: radio.votes.toString(), inline: true },
                         { name: '🎶 Genres', value: radio.genres, inline: true }
                     )
@@ -517,97 +513,9 @@ module.exports = {
                 } catch(err) {console.log(err);}
             }
         } else if(interaction.options.getSubcommand() == 'music') {
+            if(!interaction.client.config.modules['music'].enabled) return interaction.reply({ content: '> ❌ Le module musique est désactivé.'});
             await interaction.deferReply();
-            await interaction.editReply('> ⏳ Veuillez patienter...');
-            const music = interaction.options.getString('music');
-            if(!music) return await interaction.editReply('> ❌ Vous devez spécifier une musique');
-            const voicechannel = interaction.member.voice.channel;
-            if(!voicechannel) return await interaction.editReply('> ❌ Vous devez être dans un salon vocal');
-            const permissions = voicechannel.permissionsFor(interaction.client.user);
-            if(!permissions.has('CONNECT')) return await interaction.editReply('> ❌ Je n\'ai pas la permission de me connecter à ce salon vocal');
-            if(!permissions.has('SPEAK')) return await interaction.editReply('> ❌ Je n\'ai pas la permission de parler dans ce salon vocal');
-            
-            // get the music with the deezer api
-            let result;
-            try{
-                result = await DeezerClient.infos.search("track", music);
-            } catch(err) {console.log(err);}
-
-            let selectedmusic;
-
-            // if the music is not found
-            if(!result) return await interaction.editReply('> ❌ Musique introuvable');
-            else result = result.data;
-
-            // show result if there is more than one result
-            if(result?.length > 1){
-                let embed = new EmbedBuilder()
-                    .setColor(interaction.client.modules.randomcolor.getRandomColor())
-                    .setTitle('Choisissez une musique')
-                    .setDescription('Veuillez choisir une musique en cliquant sur le bouton correspondant, vous avez 30 secondes pour choisir')
-                    .setFooter({ text: "Omega Music", iconURL: interaction.client.user.avatarURL() })
-                let i = 0;
-                // a select menu with all the results
-                let select = new StringSelectMenuBuilder()
-                    .setCustomId('music')
-                    .setPlaceholder('Choisissez une musique')
-                for(const music of result){
-                    if(i < 25){
-                        select.addOptions([
-                            {
-                                label: music.title + ' - ' + music.artist.name,
-                                value: music.id.toString(),
-                                description: music.album.title,
-                                emoji: { name: '🎵' }
-                            }
-                        ])
-                    }
-                    i++;
-                }
-                embed.addFields({ name: 'Résultats', value:'```' + result.map((music, i) => `${i + 1}. ${music.title} - ${music.artist.name}`).join('\n') + '```' })
-                await interaction.editReply({ embeds: [embed], components: [new ActionRowBuilder().addComponents([select])] });
-                
-                const filter = (interaction) => interaction.user.id == interaction.member.user.id;
-                const collector = interaction.channel.createMessageComponentCollector({ filter, time: 30000 });
-                collector.on('collect', async (interaction) => {
-                    if(interaction.customId == 'music'){
-                        selectedmusic = interaction.values[0];
-                        collector.stop();
-                    }
-                });
-                collector.on('end', async (collected, reason) => {
-                    if(reason == 'time') return await interaction.editReply('> ❌ Vous avez mis trop de temps à choisir une musique');
-                    if(!selectedmusic) return await interaction.editReply('> ❌ Vous n\'avez pas choisi de musique, vous devez réexecuter la commande');
-                    await continueMusic();
-                });
-            } else if(result?.length == 1) selectedmusic = result[0].id;
-            else return await interaction.editReply('> ❌ Musique introuvable');
-
-            async function continueMusic(){
-
-                // get the music
-                let stream;
-                try{
-                    stream = await SongAsset.forLegacyStream(selectedmusic, SongLegacyFormat.MP3_128).getDecryptedStream();
-                } catch(err) {console.log(err);}
-
-                // if the music is not found
-                if(!stream) return await interaction.editReply('> ❌ Erreur lors de la récupération de la musique');
-                else return await interaction.editReply('> ✅ Musique trouvée, connexion au salon vocal...');
-
-                return;
-                try{
-                    await interaction.client.serversdb.bulkWrite([
-                        interaction.client.bulkutility.setField({
-                            'id': interaction.guild.id
-                        }, {
-                            'voiceconfig.playing': true,
-                            'voiceconfig.type': 'music',
-                            'voiceconfig.music': music1
-                        })
-                    ])
-                } catch(err) {console.log(err);}
-            }
+            interaction.editReply({ content: '> ❌ Le module musique n\'est pas encore disponible', ephemeral: true });
         }
     }
 };
