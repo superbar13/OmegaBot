@@ -121,6 +121,7 @@ module.exports = {
                 .setColor(interaction.client.modules.randomcolor.getRandomColor())
                 .setTimestamp();
             
+            //// ALL MODULES SHOW //// 
             // then we loop in all modules
             // get module string option
             var modulestring = interaction.options.getString('module');
@@ -131,6 +132,7 @@ module.exports = {
                 return interaction.editReply({ embeds: [embed] });
             }
 
+            //// ONE MODULE SHOW ////
             // check if the module exists
             if(!interaction.client.modules[modulestring]
                 && !Object.entries(interaction.client.modules).find(([key, value]) => value.showname == modulestring)
@@ -145,7 +147,7 @@ module.exports = {
             if(!module.guildconfig) return interaction.editReply({ content: 'Le module n\'a pas de configuration serveur !', ephemeral: true });
 
             // startChars
-            let startChars = ['#', '##', '###', '>', '-', '+', ':', '/', '=', '°'];
+            let startChars = ['##', '###', '>', '-', '+', ':', '/', '=', '°', '~'];
 
             // function getpath
             function getpath(path, obj) {
@@ -182,12 +184,12 @@ module.exports = {
 
                         // we add the category to the config string
                         if(option.showed) {
-                            newconfig += `\n${startChar} **__${option.displayname}__** (${key}) - ${option.description}\n`;
+                            newconfig += `\n${startChar} **__${option.displayname}__** (${key}) \n*${option.description}*\n`;
                             if(Object.keys(Obj)[0] == key) newconfig += "\n";
                         }
 
                         // loop in the category
-                        newconfig =+ loopConfig(option.childs, startChars[level + 1], level + 1, path, server1, newconfig);
+                        newconfig += loopConfig(option.childs, startChars[level + 1], level + 1, path, server1, '');
                     
                     // if it is a showed category
                     } else if(option.type == 'showedcategory') {
@@ -195,90 +197,47 @@ module.exports = {
                         let server1 = server;
 
                         // we add the category to the config string
-                        newconfig += `${startChar} **__${option.displayname}__** (${key}) - ${option.description}\n`;
+                        newconfig += `${startChar} **__${option.displayname}__** (${key}) \n*${option.description}*\n`;
                         if(Object.keys(Obj)[0] == key) config += "\n";
 
                         // loop in the category
-                        newconfig =+ loopConfig(option.childs, startChars[level + 1], level + 1, path, server1, newconfig);
+                        newconfig += loopConfig(option.childs, startChars[level + 1], level + 1, path, server1, '');
                     }
 
                     // if it is a data boolean
-                    else if(option.type == 'boolean') config += `${startChar} - ${option.displayname} (${key}) : ${getpath(path + `[${key}]`, server) ? '✅' : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
+                    else if(option.type == 'boolean') newconfig += `- ${option.displayname} (${key}) : ${getpath(path + `[${key}]`, server) ? '✅' : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
 
                     // if it is a data
-                    else newconfig += `${startChar} - ${option.displayname} (${key}) : ${getpath(path + `[${key}]`, server) ? getpath(path + `[${key}]`, server) : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
+                    else newconfig += `- ${option.displayname} (${key}) : ${getpath(path + `[${key}]`, server) ? getpath(path + `[${key}]`, server) : '❌'}\n> ${option.description ? (option.description + '\n') : ''}`;
                 }
                 return newconfig;
             }
 
             // we loop in all config options (module.guildconfig)
             let config = loopConfig(module.guildconfig, startChars[0], 0, server);
-            console.log(config);
-
-            // we add the config string to the embed
-            let embeds = [embed];
-            if(config.length <= 1024) embed.addFields({ name: `${module.showname}`, value: config, inline: false });
-            else {
-                // divise into multiple fields of < 1024 characters and < 25 fields (discord limit) and multiple embeds < 5500 characters and < 10 embeds (discord limit)
-                // using embeds array
-                let fields = [];
-                let field = '';
-
-                // we create the first embed
-                let embed = new EmbedBuilder()
-                    .setTitle('Configuration du serveur')
-                    .setColor(interaction.client.modules.randomcolor.getRandomColor())
-                    .setTimestamp();
-
-                // string to check if the embed is full
-                let currentEmbedText = 'Configuration du serveur\n';
-                let currentEmbeds = 0;
-
-                // we loop in all lines of the config string
-                for(const line of config.split('\n')) {
-                    if(field.length + line.length + 1 > 1024) {
-                        fields.push(field);
-                        field = '';
-                    }
-                    field += line + '\n';
+            
+            // MAX MESSAGE LENGTH : 2000
+            // if the message is too long, we split it, the split need to be where there is a \n
+            // we split the message
+            let splitConfigArray = config.split('\n');
+            let splitConfig = [];
+            for(var i = 0; i < splitConfigArray.length; i++) {
+                if(splitConfig[splitConfig.length - 1] && splitConfig[splitConfig.length - 1].length + splitConfigArray[i].length < 2000) {
+                    splitConfig[splitConfig.length - 1] += splitConfigArray[i] + '\n';
+                } else {
+                    splitConfig.push(splitConfigArray[i] + '\n');
                 }
-                fields.push(field);
-
-                // we loop in all fields
-                for(const field of fields) {
-                    // if the embed is full, we create a new embed
-                    if(currentEmbedText.length + field.length > 5000 || currentEmbeds == 25) {
-                        embeds.push(embed);
-                        currentEmbedText = 'Configuration du serveur\n';
-                        currentEmbeds = 0;
-                        embed = new EmbedBuilder()
-                            .setTitle('Configuration du serveur')
-                            .setColor(interaction.client.modules.randomcolor.getRandomColor())
-                            .setTimestamp();
-                    }
-                    // we add the field to the embed
-                    currentEmbedText += `Suite\n`;
-                    currentEmbedText += field;
-                    currentEmbeds++;
-                    embed.addFields({ name: `Suite`, value: field, inline: false });
-                }
-
-                // we add the last embed to the embeds array
-                embeds.push(embed);
-
-                // if there are more than 10 embeds, we send an error
-                if(embeds.length > 10) return interaction.editReply({ content: 'Une erreur est survenue.', ephemeral: true });
             }
 
-            // we send the embed
-            let i = 0;
-            for(const embed of embeds) {
-                try{
-                    ++i;
-                    if(i==0) interaction.editReply({ embeds: [embed] });
-                    else interaction.reply({ embeds: [embed] });
-                } catch (error) {
-                    console.log(error);
+            // we send the message
+            let first = true;
+            for(const split of splitConfig) {
+                embed.setDescription(split);
+                if(first) {
+                    interaction.editReply({ embeds: [embed] });
+                    first = false;
+                } else {
+                    interaction.followUp({ embeds: [embed] });
                 }
             }
         }
@@ -313,71 +272,40 @@ module.exports = {
             // we get the option subcategory
             let optionsubcategory = interaction.options.getString('subcategory');
 
+            // we get the option name
+            let optionname = interaction.options.getString('option');
+            if(!optionname) return interaction.editReply({ content: `Vous devez spécifier une option à configurer.`, ephemeral: true });
+
             if(optioncategory) {
-                let choosencategory = null;
-
                 // check if the option category exists in the module guildconfig
-                if(!tosearch[optioncategory] && !Object.entries(tosearch)
-                    .find(([key, value]) => value.displayname == optioncategory)) return interaction.editReply({ content: `La catégorie \`${optioncategory}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
-                else {
-                    choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)[1];
-                    // get category REAL name (not displayname) (key of the category in the module guildconfig)
-                    if(!tosearch[optioncategory]) optioncategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optioncategory);
-                }
-
-                // on verifie que c'est bien une catégorie
-                if(choosencategory.type != 'showedcategory' && choosencategory.type != 'databasecategory') return interaction.editReply({ content: `La catégorie \`${optioncategory}\` du module \`${modulename}\` n'est pas une catégorie.`, ephemeral: true });
-                // si il existe on le récupère
+                let choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)[1];
+                if(!choosencategory || (choosencategory.type != 'showedcategory' && choosencategory.type != 'databasecategory'))
+                    return interaction.editReply({ content: `La catégorie \`${optioncategory}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
+                
+                if(!tosearch[optioncategory]) optioncategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optioncategory);
+                tosearch = choosencategory.childs;
                 optioncategoryobject = choosencategory;
 
-                // modify the variable tosearch to the category
-                tosearch = optioncategoryobject.childs;
-
                 if(optionsubcategory) {
-                    let choosensubcategory = null;
+                    let choosensubcategory = tosearch[optionsubcategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionsubcategory)[1];
+                    if(!choosensubcategory || (choosensubcategory.type != 'showedcategory' && choosensubcategory.type != 'databasecategory'))
+                        return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` n'existe pas dans la catégorie \`${optioncategory}\` du module \`${modulename}\`.`, ephemeral: true });
 
-                    // check if the option subcategory exists in the category
-                    if(!optioncategoryobject.childs[optionsubcategory]
-                        && !Object.entries(optioncategoryobject.childs).find(([key, value]) => value.displayname == optionsubcategory)
-                    ) return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` n'existe pas dans la catégorie \`${optioncategory}\` du module \`${modulename}\`.`, ephemeral: true });
-                    else {
-                        choosensubcategory = optioncategoryobject.childs[optionsubcategory] || Object.entries(optioncategoryobject.childs).find(([key, value]) => value.displayname == optionsubcategory)[1];
-                        // get subcategory REAL name (not displayname) (key of the subcategory in the category)
-                        if(!optioncategoryobject.childs[optionsubcategory]) optionsubcategory = Object.keys(optioncategoryobject.childs).find(key => optioncategoryobject.childs[key].displayname == optionsubcategory);
-                    }
-                    // on verifie que c'est bien une sous-catégorie
-                    if(choosensubcategory.type != 'showedcategory' && choosensubcategory.type != 'databasecategory') return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` de la catégorie \`${optioncategory}\` du module \`${modulename}\` n'est pas une sous-catégorie.`, ephemeral: true });
-
-                    // modify the variable tosearch to the subcategory
+                    if(!tosearch[optionsubcategory]) optionsubcategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optionsubcategory);
                     tosearch = choosensubcategory.childs;
+                    optionsubcategoryobject = choosensubcategory;
                 }
             }
 
             // so a this point, tosearch is defined with the module, category and subcategory
             // we now check the option
 
-            // we get the option name
-            let optionname = interaction.options.getString('option');
-            if(!optionname) return interaction.editReply({ content: `Vous devez spécifier une option à configurer.`, ephemeral: true });
+            let option = tosearch[optionname] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)[1];
+            if(!option || (option.type == 'showedcategory' || option.type == 'databasecategory'))
+                return interaction.editReply({ content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
 
-            let choosenoption = null;
-
-            // check if the option name exists in the tosearch object
-            if(!tosearch[optionname] &&
-                !Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)
-            ) return interaction.editReply({ content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
-            else {
-                choosenoption = tosearch[optionname] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)[1];
-                // get option REAL name (not displayname) (key of the option in the tosearch object)
-                if(!tosearch[optionname]) optionname = Object.keys(tosearch).find(key => tosearch[key].displayname == optionname);
-            }
-
-            // on verifie que c'est bien une option
-            if(choosenoption.type == 'showedcategory' || choosenoption.type == 'databasecategory') return interaction.editReply({ content: `L'option \`${optionname}\` du module \`${modulename}\` n'est pas une option.`, ephemeral: true });
-            
-            // define the option
-            const option = choosenoption;
-
+            if(!tosearch[optionname]) optionname = Object.keys(tosearch).find(key => tosearch[key].displayname == optionname);
+        
             // we get the option value
             let optionvalue = interaction.options.getString('value');
             let collector = null;
@@ -779,36 +707,33 @@ module.exports = {
                 }
             }
 
-            if(modifiedvalue == null) return interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, ephemeral: true, components: [] });
+            if(!modifiedvalue)
+                return interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, ephemeral: true, components: [] });
 
             let server1 = server;
-            let updatestring = null;
-
-            // define the updatestring
-            // if there are a category
+            let updatestring = optionname
             if(optioncategoryobject && optioncategoryobject?.type == 'databasecategory') {
                 server1 = server[optioncategory];
-                // if there are a subcategory
+                updatestring = `${optioncategory}.${optionname}`;
                 if(optionsubcategoryobject && optionsubcategoryobject?.type == 'databasecategory') {
                     server1 = server1[optioncategory][optionsubcategory];
                     updatestring = `${optioncategory}.${optionsubcategory}.${optionname}`;
-                } else updatestring = `${optioncategory}.${optionname}`;
-            } else updatestring = optionname;
+                }
+            }
 
             // check if the option value is the same as the current value
-            if(server1[optionname] == modifiedvalue) return interaction.editReply({ content: `La valeur \`${modifiedvalue}\` est déjà celle de l'option \`${optionname}\`.`, ephemeral: true });
+            if(server1[optionname] == modifiedvalue)
+                return interaction.editReply({ content: `La valeur \`${modifiedvalue}\` est déjà celle de l'option \`${optionname}\`.`, ephemeral: true });
 
-            if(updatestring) {
-                try{
-                    await client.serversdb.bulkWrite([
-                        client.bulkutility.setField({
-                            'id': interaction.guild.id,
-                        }, {
-                            [updatestring]: modifiedvalue,
-                        })
-                    ])
-                }catch(err){console.log((err).red)}
-            }
+            try{
+                await client.serversdb.bulkWrite([
+                    client.bulkutility.setField({
+                        'id': interaction.guild.id,
+                    }, {
+                        [updatestring]: modifiedvalue,
+                    })
+                ])
+            }catch(err){console.log((err).red)}
 
             // send the embed
             let embed = new EmbedBuilder()
@@ -840,10 +765,8 @@ module.exports = {
             }
             
             // check if the module has a guildconfig
-            if(!choosenmodule.guildconfig) {
-                return interaction.editReply({ content: `Le module \`${modulename}\` n'a pas de configuration serveur.`, ephemeral: true });
-            }
-            
+            if(!choosenmodule.guildconfig) return interaction.editReply({ content: `Le module \`${modulename}\` n'a pas de configuration serveur.`, ephemeral: true });
+
             // set the variable tosearch to the guildconfig of the module
             let tosearch = choosenmodule.guildconfig;
 
@@ -851,83 +774,55 @@ module.exports = {
             let optionsubcategoryobject = null;
 
             // we get the option category
-            const optioncategory = interaction.options.getString('category');
+            let optioncategory = interaction.options.getString('category');
 
             // we get the option subcategory
-            const optionsubcategory = interaction.options.getString('subcategory');
+            let optionsubcategory = interaction.options.getString('subcategory');
 
+            // we get the option name
+            let optionname = interaction.options.getString('option');
+            if(!optionname) return interaction.editReply({ content: `Vous devez spécifier une option à configurer.`, ephemeral: true });
+            
             if(optioncategory) {
-                let choosencategory = null;
-
                 // check if the option category exists in the module guildconfig
-                if(!tosearch[optioncategory] && !Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)) {
+                let choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)[1];
+                if(!choosencategory || (choosencategory.type != 'showedcategory' && choosencategory.type != 'databasecategory'))
                     return interaction.editReply({ content: `La catégorie \`${optioncategory}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
-                } else {
-                    choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)[1];
-                    // get category REAL name (not displayname) (key of the category in the module guildconfig)
-                    if(!tosearch[optioncategory]) optioncategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optioncategory);
-                }
-
-                // on verifie que c'est bien une catégorie
-                if(choosencategory.type != 'showedcategory' && choosencategory.type != 'databasecategory') return interaction.editReply({ content: `La catégorie \`${optioncategory}\` du module \`${modulename}\` n'est pas une catégorie.`, ephemeral: true });
-                // si il existe on le récupère
+                
+                if(!tosearch[optioncategory]) optioncategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optioncategory);
+                tosearch = choosencategory.childs;
                 optioncategoryobject = choosencategory;
 
-                // modify the variable tosearch to the category
-                tosearch = optioncategoryobject.childs;
-
                 if(optionsubcategory) {
-                    let choosensubcategory = null;
-
-                    // check if the option subcategory exists in the category
-                    if(!optioncategoryobject.childs[optionsubcategory] && !Object.entries(optioncategoryobject.childs).find(([key, value]) => value.displayname == optionsubcategory)) {
+                    let choosensubcategory = tosearch[optionsubcategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionsubcategory)[1];
+                    if(!choosensubcategory || (choosensubcategory.type != 'showedcategory' && choosensubcategory.type != 'databasecategory'))
                         return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` n'existe pas dans la catégorie \`${optioncategory}\` du module \`${modulename}\`.`, ephemeral: true });
-                    } else {
-                        choosensubcategory = optioncategoryobject.childs[optionsubcategory] || Object.entries(optioncategoryobject.childs).find(([key, value]) => value.displayname == optionsubcategory)[1];
-                        // get subcategory REAL name (not displayname) (key of the subcategory in the category)
-                        if(!optioncategoryobject.childs[optionsubcategory]) optionsubcategory = Object.keys(optioncategoryobject.childs).find(key => optioncategoryobject.childs[key].displayname == optionsubcategory);
-                    }
-                    // on verifie que c'est bien une sous-catégorie
-                    if(choosensubcategory.type != 'showedcategory' && choosensubcategory.type != 'databasecategory') return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` de la catégorie \`${optioncategory}\` du module \`${modulename}\` n'est pas une sous-catégorie.`, ephemeral: true });
 
-                    // modify the variable tosearch to the subcategory
+                    if(!tosearch[optionsubcategory]) optionsubcategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optionsubcategory);
                     tosearch = choosensubcategory.childs;
+                    optionsubcategoryobject = choosensubcategory;
                 }
             }
 
             // so a this point, tosearch is defined with the module, category and subcategory
             // we now check the option
 
-            // we get the option name
-            let optionname = interaction.options.getString('option');
-
-            let choosenoption = null;
-
-            // check if the option name exists in the tosearch object
-            if(!tosearch[optionname] && !Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)) {
+            let option = tosearch[optionname] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)[1];
+            if(!option || (option.type == 'showedcategory' || option.type == 'databasecategory'))
                 return interaction.editReply({ content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
-            } else {
-                choosenoption = tosearch[optionname] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)[1];
-                // get option REAL name (not displayname) (key of the option in the tosearch object)
-                if(!tosearch[optionname]) optionname = Object.keys(tosearch).find(key => tosearch[key].displayname == optionname);
-            }
 
-            // on verifie que c'est bien une option
-            if(choosenoption.type == 'showedcategory' || choosenoption.type == 'databasecategory') return interaction.editReply({ content: `L'option \`${optionname}\` du module \`${modulename}\` n'est pas une option.`, ephemeral: true });
-
+            if(!tosearch[optionname]) optionname = Object.keys(tosearch).find(key => tosearch[key].displayname == optionname);
+        
             let server1 = server;
-            let updatestring = null;
-
-            // define the updatestring
-            // if there are a category
+            let updatestring = optionname
             if(optioncategoryobject && optioncategoryobject?.type == 'databasecategory') {
                 server1 = server[optioncategory];
-                // if there are a subcategory
+                updatestring = `${optioncategory}.${optionname}`;
                 if(optionsubcategoryobject && optionsubcategoryobject?.type == 'databasecategory') {
                     server1 = server1[optioncategory][optionsubcategory];
                     updatestring = `${optioncategory}.${optionsubcategory}.${optionname}`;
-                } else updatestring = `${optioncategory}.${optionname}`;
-            } else updatestring = optionname;
+                }
+            }
 
             if(updatestring) {
                 try{
@@ -954,191 +849,106 @@ module.exports = {
         }
     },
     async autocomplete(interaction) {
-        let focused = interaction.options.getFocused(true);
-        let focusedOption = focused?.name;
-		let focusedValue = focused?.value;
-        if(!focusedValue) focusedValue = false;
-
-        // check the subcommand
-        if(interaction.options.getSubcommand() == 'show') {
-            if(focusedOption == 'module') {
-                // get modules list
+        const focused = interaction.options.getFocused(true); // Get the focused option
+        const focusedOption = focused?.name; // Get the name of the focused option
+        let focusedValue = focused?.value || ''; // Get the value of the focused option or set to empty string if undefined
+    
+        // Function to filter modules based on the focused value and key (showname or displayname)
+        const filterModules = (modules, focusedValue, key) => {
+            return (focusedValue 
+                ? Object.entries(modules).filter(([k, v]) => v[key].startsWith(focusedValue)) 
+                : Object.entries(modules)
+            ).map(([k, v]) => v[key]);
+        };
+    
+        // Function to filter modules that have a guild configuration
+        const getFilteredModules = (modules, focusedValue) => {
+            let filtered = filterModules(modules, focusedValue, 'showname');
+            return filtered.filter(module => 
+                Object.entries(modules).some(([k, v]) => v.showname == module && typeof v.guildconfig !== 'undefined')
+            );
+        };
+    
+        // Handler for the 'show' subcommand
+        const handleShowCommand = async () => {
+            if (focusedOption === 'module') {
                 const modules = interaction.client.modules;
-
-                // filter modules list
-                //let filtered = focusedValue ? Object.keys(modules).filter(module => module.startsWith(focusedValue)) : Object.keys(modules);
-                // filter modules list with displayname
-                let filtered = (focusedValue ? Object.entries(modules).filter(([key, value]) => value.showname.startsWith(focusedValue)) : Object.entries(modules)).map(([key, value]) => value.showname);
-                // merge the 2 arrays
-                //filtered = filtered.concat(filtered2);
-
-                // show only modules with guildconfig
-                filtered = filtered.filter(module => Object.entries(modules).find(([key, value]) => value.showname == module && typeof value?.guildconfig != 'undefined'));
-
-                // send the filtered list
-                await interaction.respond(
-                    filtered.map(module => ({ name: module, value: module })),
-                );
-            } else interaction.respond([]);
-        } else if(interaction.options.getSubcommand() == 'set' || interaction.options.getSubcommand() == 'reset') {
-            if(focusedOption == 'module') {
-                // get modules list
-                const modules = interaction.client.modules;
-
-                // filter modules list
-                //let filtered = focusedValue ? Object.keys(modules).filter(module => module.startsWith(focusedValue)) : Object.keys(modules);
-                // filter modules list with displayname
-                let filtered = (focusedValue ? Object.entries(modules).filter(([key, value]) => value.showname.startsWith(focusedValue)) : Object.entries(modules)).map(([key, value]) => value.showname);
-                // merge the 2 arrays
-                //filtered = filtered.concat(filtered2);
-
-                // show only modules with guildconfig
-                filtered = filtered.filter(module => Object.entries(modules).find(([key, value]) => value.showname == module && typeof value?.guildconfig != 'undefined'));
-
-                // send the filtered list
-                await interaction.respond(
-                    filtered.map(module => ({ name: module, value: module })),
-                );
-            } else if(focusedOption == 'category') {
-                // get modules list
-                const modules = interaction.client.modules;
-
-                // get the module name
-                const modulename = interaction.options.getString('module');
-                // set choosenmodule
-                let choosenmodule = null;
-                // check if the module exists
-                if(!modules[modulename] && !Object.entries(modules).find(([key, value]) => value.showname == modulename)) {
-                    return interaction.respond([{ name: `Pas de module, pas de catégorie.`, value: `Nope` }]);
-                } else {
-                    choosenmodule = modules[modulename] || Object.entries(modules).find(([key, value]) => value.showname == modulename);
-                }
-                // get the module guildconfig
-                if(!choosenmodule[1].guildconfig) return interaction.respond([{ name: `Pas de configuration, pas de catégorie.`, value: `Nope` }]);
-                let tosearch = choosenmodule[1].guildconfig;
-
-                // filter modules list
-                //let filtered = focusedValue ? Object.keys(tosearch).filter(category => category.startsWith(focusedValue)) : Object.keys(tosearch);
-                let filtered = (focusedValue ? Object.keys(tosearch).filter(category => tosearch[category].displayname.startsWith(focusedValue)) : Object.keys(tosearch)).map(category => tosearch[category].displayname);
-                //filtered = filtered.concat(filtered2);
-
-                // show only categories
-                filtered = filtered.filter(category => Object.entries(tosearch).find(([key, value]) => value.displayname == category && (value.type == 'showedcategory' || value.type == 'databasecategory')));
-                
-                // send the filtered list
-                await interaction.respond(
-                    filtered.map(category => ({ name: category, value: category })),
-                );
-            } else if(focusedOption == 'subcategory') {
-                // get modules list
-                const modules = interaction.client.modules;
-
-                // get the module name
-                const modulename = interaction.options.getString('module');
-                // set choosenmodule
-                let choosenmodule = null;
-                // check if the module exists
-                if(!modules[modulename] && !Object.entries(modules).find(([key, value]) => value.showname == modulename)) {
-                    return interaction.respond([{ name: `Module invalide.`, value: `Nope` }]);
-                } else {
-                    choosenmodule = modules[modulename] || Object.entries(modules).find(([key, value]) => value.showname == modulename);
-                }
-                // get the module guildconfig
-                if(!choosenmodule[1].guildconfig) return interaction.respond([{ name: `Pas de configuration, pas de catégorie.`, value: `Nope` }]);
-                let tosearch = choosenmodule[1].guildconfig;
-
-                // get the option category
-                const optioncategory = interaction.options.getString('category');
-                // set choosencategory
-                let choosencategory = null;
-                // check if the option category exists in the module guildconfig
-                if(!tosearch[optioncategory] && !Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)) {
-                    return interaction.respond([{ name: `Catégorie invalide.`, value: `Nope` }]);
-                } else {
-                    choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory);
-                }
-                // on verifie que c'est bien une catégorie
-                if(choosencategory[1].type != 'showedcategory' && choosencategory[1].type != 'databasecategory') return interaction.respond([{ name: `Catégorie invalide.`, value: `Nope` }]);
-                // si il existe on le récupère
-                tosearch = choosencategory[1].childs;
-
-                // filter modules list
-                //let filtered = focusedValue ? Object.keys(tosearch).filter(subcategory => subcategory.startsWith(focusedValue)) : Object.keys(tosearch);
-                let filtered = (focusedValue ? Object.keys(tosearch).filter(subcategory => tosearch[subcategory].displayname.startsWith(focusedValue)) : Object.keys(tosearch)).map(subcategory => tosearch[subcategory].displayname);
-                //filtered = filtered.concat(filtered2);
-
-                // show only subcategories
-                filtered = filtered.filter(category => Object.entries(tosearch).find(([key, value]) => value.displayname == category && (value.type == 'showedcategory' || value.type == 'databasecategory')));
-
-                // send the filtered list
-                await interaction.respond(
-                    filtered.map(subcategory => ({ name: subcategory, value: subcategory })),
-                );
-            } else if(focusedOption == 'option') {
-                // get modules list
-                const modules = interaction.client.modules;
-
-                // get the module name
-                const modulename = interaction.options.getString('module');
-                // set choosenmodule
-                let choosenmodule = null;
-                // check if the module exists
-                if(!modules[modulename] && !Object.entries(modules).find(([key, value]) => value.showname == modulename)) {
-                    return interaction.respond([{ name: `Module invalide.`, value: `Nope` }]);
-                } else {
-                    choosenmodule = modules[modulename] || Object.entries(modules).find(([key, value]) => value.showname == modulename);
-                }
-                // get the module guildconfig
-                if(!choosenmodule[1].guildconfig) return interaction.respond([{ name: `Pas de configuration, pas de catégorie.`, value: `Nope` }]);
-                let tosearch = choosenmodule[1].guildconfig;
-
-                // get the option category
-                const optioncategory = interaction.options.getString('category');
-                // set choosencategory
-                let choosencategory = null;
-                // check if the option category exists in the module guildconfig
-                if(optioncategory) {
-                    if(!tosearch[optioncategory] && !Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)) {
-                        return interaction.respond([{ name: `Catégorie invalide.`, value: `Nope` }]);
-                    } else {
-                        choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory);
-                    }
-                    // on verifie que c'est bien une catégorie
-                    if(choosencategory[1].type != 'showedcategory' && choosencategory[1].type != 'databasecategory') return interaction.respond([{ name: `Catégorie invalide.`, value: `Nope` }]);
-                    // si il existe on le récupère
-                    tosearch = choosencategory[1].childs;
-
-                    // get the option subcategory
-                    const optionsubcategory = interaction.options.getString('subcategory');
-                    // set choosensubcategory
-                    let choosensubcategory = null;
-                    // check if the option subcategory exists in the module guildconfig
-                    if(optionsubcategory) {
-                        if(!tosearch[optionsubcategory] && !Object.entries(tosearch).find(([key, value]) => value.displayname == optionsubcategory)) {
-                            return interaction.respond([{ name: `Sous-catégorie invalide.`, value: `Nope` }]);
-                        } else {
-                            choosensubcategory = tosearch[optionsubcategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionsubcategory);
-                        }
-                        // on verifie que c'est bien une sous-catégorie
-                        if(choosensubcategory[1].type != 'showedcategory' && choosensubcategory[1].type != 'databasecategory') return interaction.respond([{ name: `Sous-catégorie invalide.`, value: `Nope` }]);
-                        // si il existe on le récupère
-                        tosearch = choosensubcategory[1].childs;
-                    }
-                }
-
-                // filter modules list
-                //let filtered = focusedValue ? Object.keys(tosearch).filter(option => option.startsWith(focusedValue)) : Object.keys(tosearch);
-                let filtered = (focusedValue ? Object.keys(tosearch).filter(option => tosearch[option].displayname.startsWith(focusedValue)) : Object.keys(tosearch)).map(option => tosearch[option].displayname);
-                //filtered = filtered.concat(filtered2);
-
-                // filter filtered to show only options
-                filtered = filtered.filter(option => Object.entries(tosearch).find(([key, value]) => value.displayname == option && value.type != 'showedcategory' && value.type != 'databasecategory'));
-                
-                // send the filtered list
-                await interaction.respond(
-                    filtered.map(option => ({ name: option, value: option })),
-                );
+                const filtered = getFilteredModules(modules, focusedValue);
+                await interaction.respond(filtered.map(module => ({ name: module, value: module })));
             } else await interaction.respond([]);
-        } else await interaction.respond([]);
-	},
+        };
+
+        // Function to get the chosen module based on the module name
+        const getChosenThings = (tosearch, thing) => {
+            const moduleEntry = Object.entries(tosearch).find(([k, v]) => v.showname === thing || v.displayname === thing);
+            return tosearch[thing] || moduleEntry || null;
+        };
+    
+        // Handler for the 'set' and 'reset' subcommands
+        // Consolidated handler for category, subcategory, and option interactions
+        const handleSetResetCommand = async () => {
+            const modules = interaction.client.modules;
+
+            let filtered = [];
+
+            // for modules
+            if (focusedOption === 'module') {
+                filtered = getFilteredModules(modules, focusedValue);
+                return await interaction.respond(filtered.map(item => ({ name: item, value: item })));
+            }
+
+            choosenModule = getChosenThings(modules, interaction.options.getString('module'));
+            if (!choosenModule) return;
+            let tosearch = choosenModule[1].guildconfig;
+            if (!tosearch) return await interaction.respond([{ name: `Pas de configuration, pas de ${focusedOption}.`, value: `Nope` }]);
+
+            // for categories
+            if (focusedOption === 'category') {
+                // filter the categories
+                let filtered = filterModules(tosearch, focusedValue, 'displayname');
+                filtered = filtered.filter(category =>
+                    Object.entries(tosearch).some(([k, v]) => v.displayname == category && (v.type === 'showedcategory' || v.type === 'databasecategory'))
+                );
+                return await interaction.respond(filtered.map(item => ({ name: item, value: item })));
+            }
+
+            // Get the category name
+            const choosenCategory = getChosenThings(tosearch, interaction.options.getString('category'));
+            if (!choosenCategory) return;
+            tosearch = choosenCategory[1].childs;
+            if (!tosearch) return await interaction.respond([]);
+
+            // for subcategories
+            if (focusedOption === 'subcategory') {
+                let filtered = filterModules(tosearch, focusedValue, 'displayname');
+                filtered = filtered.filter(subcategory =>
+                    Object.entries(tosearch).some(([k, v]) => v.displayname == subcategory && (v.type === 'showedcategory' || v.type === 'databasecategory'))
+                );
+                return await interaction.respond(filtered.map(item => ({ name: item, value: item })));
+            }
+
+            // Get the subcategory name
+            const choosenSubcategory = getChosenThings(tosearch, interaction.options.getString('subcategory'));
+            if (!choosenSubcategory) return;
+            tosearch = choosenSubcategory[1].childs;
+            if (!tosearch) return await interaction.respond([]);
+
+            // for options
+            if (focusedOption === 'option') {
+                let filtered = filterModules(tosearch, focusedValue, 'displayname');
+                filtered = filtered.filter(option =>
+                    Object.entries(tosearch).some(([k, v]) => v.displayname == option && v.type !== 'showedcategory' && v.type !== 'databasecategory')
+                );
+                return await interaction.respond(filtered.map(item => ({ name: item, value: item })));
+            }
+
+            // send
+            return await interaction.respond(filtered.map(item => ({ name: item, value: item })));
+        };
+
+        // Handle different subcommands
+        if (interaction.options.getSubcommand() === 'show') await handleShowCommand();
+        else if (['set', 'reset'].includes(interaction.options.getSubcommand())) await handleSetResetCommand();
+        else await interaction.respond([]);
+    }
 }

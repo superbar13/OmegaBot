@@ -1,6 +1,6 @@
 // rank command module to be used in index.js (but it's for guilds)
-const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
+const { EmbedBuilder, AttachmentBuilder, ButtonStyle } = require('discord.js');
+const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder , ButtonBuilder } = require('@discordjs/builders');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -36,6 +36,26 @@ module.exports = {
         .addSubcommand(subcommand => subcommand
             .setName('daily')
             .setDescription('Travaille très dur')
+        )
+        .addSubcommand(subcommand => subcommand
+            .setName('farm')
+            .setDescription('Fait de l\'agriculture')
+        )
+        .addSubcommand(subcommand => subcommand
+            .setName('fish')
+            .setDescription('Pêche')
+        )
+        .addSubcommand(subcommand => subcommand
+            .setName('hunt')
+            .setDescription('Chasse')
+        )
+        .addSubcommand(subcommand => subcommand
+            .setName('mine')
+            .setDescription('Mine')
+        )
+        .addSubcommand(subcommand => subcommand
+            .setName('woodcut')
+            .setDescription('Coupe du bois')
         ),
     category: 'rpg',
     telegram: 'disabled',
@@ -124,9 +144,9 @@ module.exports = {
             .setDescription('Voici les informations sur votre inventaire');
 
             // user.rpg.inventory is an array of objects like : { id: ObjectID, quantity: Number }
-            let Inventory = user.rpg.inventory;
+            let inventory = user.rpg.inventory;
             // sort by quantity more is first
-            Inventory.sort((a, b) => b.quantity - a.quantity);
+            inventory.sort((a, b) => b.quantity - a.quantity);
 
             // get the page
             let page = interaction.options.getInteger('page') || 1;
@@ -134,14 +154,16 @@ module.exports = {
             let perpage = 10;
 
             function createList() {
-                return Inventory.map((item, index) => {
+                return (inventory.map((item, index) => {
                     return `${item.quantity} - ${item.id.name} - ${item.quantity}`;
-                }).slice((page - 1) * perpage, page * perpage).join('\n')
+                }).slice((page - 1) * perpage, page * perpage).join('\n')) || 'Aucun';
             }
+
+            if(inventory.length == 0) return interaction.editReply({ content: '> ❌ Votre inventaire est vide.'});
 
             embed
                 .setDescription(createList())
-                .setFooter({ text: `Page ${page} / ${Math.ceil(Inventory.length / perpage)}` })
+                .setFooter({ text: `Page ${page} / ${Math.ceil(inventory.length / perpage)}` })
                 .setAuthor({ name: interaction.user.username, iconURL: interaction.user.avatarURL() })
                 .setColor(interaction.client.modules.randomcolor.getRandomColor())
                 .setTimestamp()
@@ -158,7 +180,7 @@ module.exports = {
                     .setCustomId('top_next')
                     .setLabel('Suivant')
                     .setStyle(ButtonStyle.Primary)
-                    .setDisabled(page === Math.ceil(Inventory.length / perpage))
+                    .setDisabled(page === Math.ceil(inventory.length / perpage))
                 )
                 await interaction.editReply({ embeds: [embed], components: [components] });
 
@@ -180,11 +202,11 @@ module.exports = {
                             .setCustomId('top_next')
                             .setLabel('Suivant')
                             .setStyle(ButtonStyle.Primary)
-                            .setDisabled(page === Math.ceil(Inventory.length / perpage))
+                            .setDisabled(page === Math.ceil(inventory.length / perpage))
                         )
                         embed
                         .setDescription(createList())
-                        .setFooter({ text: `Page ${page} / ${Math.ceil(Inventory.length / perpage)}` })
+                        .setFooter({ text: `Page ${page} / ${Math.ceil(inventory.length / perpage)}` })
                         await i.update({ embeds: [embed], components: [components] });
                     }else if(i.customId === 'top_next'){
                         // change page
@@ -200,11 +222,11 @@ module.exports = {
                             .setCustomId('top_next')
                             .setLabel('Suivant')
                             .setStyle(ButtonStyle.Primary)
-                            .setDisabled(page === Math.ceil(Inventory.length / perpage))
+                            .setDisabled(page === Math.ceil(inventory.length / perpage))
                         )
                         embed
                         .setDescription(createList())
-                        .setFooter({ text: `Page ${page} / ${Math.ceil(Inventory.length / perpage)}` })
+                        .setFooter({ text: `Page ${page} / ${Math.ceil(inventory.length / perpage)}` })
                         await i.update({ embeds: [embed], components: [components] });
                     }
                 });
@@ -227,7 +249,7 @@ module.exports = {
                 });
 
             }catch(err){
-                await interaction.reply('> ❌ Une erreur est survenue');
+                await interaction.editReply('> ❌ Une erreur est survenue');
                 console.log(err);
             }
         } else if(subcommand == 'ressources') {
@@ -248,7 +270,7 @@ module.exports = {
                 { name: '⛏ Minage', value: `Charbon: ${user.rpg.ressources.mining.coal} | Fer: ${user.rpg.ressources.mining.iron} | Or: ${user.rpg.ressources.mining.gold} | Diamant: ${user.rpg.ressources.mining.diamond} | Émeraude: ${user.rpg.ressources.mining.emerald} | Rubis: ${user.rpg.ressources.mining.ruby} | Saphir: ${user.rpg.ressources.mining.sapphire} | Améthyste: ${user.rpg.ressources.mining.amethyst} | Uranium: ${user.rpg.ressources.mining.uranium}`, inline: true },
                 { name: '🪓 Bûcheronnage', value: `Chêne: ${user.rpg.ressources.woodcutting.oak} | Sapin: ${user.rpg.ressources.woodcutting.spruce} | Bouleau: ${user.rpg.ressources.woodcutting.birch} | Jungle: ${user.rpg.ressources.woodcutting.jungle} | Acacia: ${user.rpg.ressources.woodcutting.acacia} | Chêne noir: ${user.rpg.ressources.woodcutting.darkoak} | Sapin de Douglas: ${user.rpg.ressources.woodcutting.fir} | Pin: ${user.rpg.ressources.woodcutting.pine}`, inline: true },
                 { name: '🌾 Agriculture', value: `Blé: ${user.rpg.ressources.farming.wheat} | Pomme de terre: ${user.rpg.ressources.farming.potato} | Carotte: ${user.rpg.ressources.farming.carrot} | Fraise: ${user.rpg.ressources.farming.strawberry} | Tomate: ${user.rpg.ressources.farming.tomato} | Radis: ${user.rpg.ressources.farming.radish} | Pomme: ${user.rpg.ressources.farming.apple} | Orange: ${user.rpg.ressources.farming.orange} | Poire: ${user.rpg.ressources.farming.pear} | Banane: ${user.rpg.ressources.farming.banana}`, inline: true },
-                { name: '🎣 Pêche', value: `Saumon: ${user.rpg.ressources.fishing.salmon} | Raie: ${user.rpg.ressources.fishing.sea_beam}`, inline: true },
+                { name: '🎣 Pêche', value: `Saumon: ${user.rpg.ressources.fishing.salmon} | Raie: ${user.rpg.ressources.fishing.sea_bream}`, inline: true },
                 { name: '🏹 Chasse', value: `Lapin: ${user.rpg.ressources.hunting.rabbit} | Poulet: ${user.rpg.ressources.hunting.chicken} | Cochon: ${user.rpg.ressources.hunting.pig} | Mouton: ${user.rpg.ressources.hunting.sheep} | Bœuf: ${user.rpg.ressources.hunting.beef}`, inline: true },
             )
 
@@ -274,7 +296,7 @@ module.exports = {
             // description, tranche de gain money, tranche de gain ultramoney, tranche de gain xp
             // xp nécessaire pour l'obtenir
             embed.addFields(
-                { name: '📜 Description', value: user.rpg.business.job.description.toString(), inline: true },
+                { name: '📜 Description', value: job.description.toString(), inline: true },
                 { name: '💸 Gain money', value: `${job.money.min} - ${job.money.max}`, inline: true },
                 { name: '💠 Gain ultramoney', value: `${job.ultramoney.min} - ${job.ultramoney.max}`, inline: true },
                 { name: '📈 Gain XP', value: `${job.xp.min} - ${job.xp.max}`, inline: true },

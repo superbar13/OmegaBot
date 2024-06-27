@@ -122,7 +122,7 @@ module.exports = {
                 // create embed
                 const embed1 = new EmbedBuilder()
                     .setTitle('🗺️ Voyage 🗺️')
-                    .setDescription(`Vous avez voyagé vers la zone ${x} ${y}. Zone de type ${travel?.type}.`
+                    .setDescription(`Vous avez voyagé vers la zone ${x} ${y}. Zone de type ${travel?.type?.name}.`
                     + `\nDurant ce voyage vous avez perdu ${travel?.eated} points de faim et ${travel?.watered} points de soif.`)
                     .setColor(interaction.client.modules.randomcolor.getRandomColor())
                     .setTimestamp()
@@ -154,7 +154,36 @@ module.exports = {
             }
             */
         } else if(subcommand === 'info'){
-            await interaction.editReply({ content: '> ❌ Cette commande est en cours de développement.' });
+            let x = interaction.options.getString('x');
+            let y = interaction.options.getString('y');
+
+            // get pixel
+            const pixelAndChunk = interaction.client.RPG.chunkManager.getCoordPixelAndChunk(x, y);
+            console.log(pixelAndChunk);
+            const pixel = pixelAndChunk.pixel;
+            console.log(pixel);
+            const chunk = pixelAndChunk.chunk;
+            console.log(chunk);
+            const pixelType = interaction.client.RPG.getPixelType(pixel.type);
+            console.log(pixelType);
+
+            // create embed
+            const embed = new EmbedBuilder()
+            .setTitle('🗺️ Zone 🗺️')
+            .setDescription(`Voici les informations sur la zone ${x} ${y}`)
+            .setColor(interaction.client.modules.randomcolor.getRandomColor())
+            .setTimestamp()
+            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
+
+            embed.addFields({
+                name: '📍 Position 📍',
+                value: `Cette zone est de type ${pixelType.name} ${pixelType.emoji}`
+                + `\nIl y a actuellement ${pixel.players} joueur(s) sur cette zone`
+                + `\nIl y a actuellement ${pixel.monsters} monstre(s) sur cette zone`
+            });
+
+            // send embed
+            await interaction.editReply({ embeds: [embed] });
         } else if(subcommand === 'spawn'){
             // spawn
             const spawn = await interaction.client.RPG.spawn(interaction.user.id);
@@ -190,7 +219,7 @@ module.exports = {
 
             embed.addFields({
                 name: '📍 Position 📍',
-                value: `Ce jour est actuellement sur le chunk ${player.chunk.x} ${player.chunk.z} et dans la zone ${player.pixel.x} ${player.pixel.z}`
+                value: `Ce joueur est actuellement dans le chunk ${player.chunk.x} ${player.chunk.z} et dans la zone ${player.pixel.x} ${player.pixel.z}`
                 + `\nIl est dans une zone de type ${interaction.client.RPG.getPixelType(player.pixel.type).name} ${interaction.client.RPG.getPixelType(player.pixel.type).emoji}`
             });
 

@@ -36,9 +36,22 @@ MapSchema.statics.SaveMap = async function (object) {
     console.log("Saving map...");
     // get all chunks
     console.log("Fetching map... (for saving)");
-    let chunks = await Map.find({});
+    //let chunks = await Map.find({});
+
+    // get the chunks collection length
+    let chunksL = await Map.find({}).countDocuments();
+    let chunks = [];
+    await Promise.all(Array.from({ length: chunksL }, async (_, i) => {
+        chunks.push(await Map.findOne({}).skip(i));
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
+        process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
+    }));
+    process.stdout.write("\n");
+
     console.log("Map fetched. (for saving)");
-    let i = 0;
+
+    i = 0;
     await Promise.all(object.chunks.map(async (chunk) => {
         // find the chunk with position x and y
         let dbChunk = chunks.find(c => c.position.x == chunk.position.x && c.position.z == chunk.position.z);
@@ -72,7 +85,19 @@ MapSchema.statics.SaveMap = async function (object) {
 MapSchema.statics.GetMap = async function () {
     console.log("Fetching map...");
     // get all chunks
-    let chunks = await Map.find({});
+    //let chunks = await Map.find({});
+
+    // get the chunks collection length
+    let chunksL = await Map.find({}).countDocuments();
+    let chunks = [];
+    await Promise.all(Array.from({ length: chunksL }, async (_, i) => {
+        chunks.push(await Map.findOne({}).skip(i));
+        process.stdout.clearLine();
+        process.stdout.cursorTo(0);
+        process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
+    }));
+    process.stdout.write("\n");
+
     console.log("Map fetched (for getting).");
     
     // create a new object
@@ -80,7 +105,7 @@ MapSchema.statics.GetMap = async function () {
         chunks: []
     };
     // for each chunk
-    let i = 0;
+    i = 0;
     await Promise.all(chunks.map(async (chunk) => {
         // add it to the object
         object.chunks.push({

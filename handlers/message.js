@@ -149,7 +149,7 @@ module.exports = {
                 return messageResponse;
             }
             message.fetchReply = async () => {return messageResponse;};
-            message.followUp = async (options) => {messageResponse.send(options);};
+            message.followUp = async (content) => {messageResponse.reply(content)};
             message.deleteReply = async () => {messageResponse.delete();};
             message.editReply = async (content) => {
                 // Si on peut modifier le message, le modifier

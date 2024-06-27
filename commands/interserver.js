@@ -272,6 +272,20 @@ module.exports = {
                 .setRequired(true)
             )
         )
+        .addSubcommand(subcommand => subcommand
+            .setName('leave-server')
+            .setDescription('Quittez un serveur d\'un interserveur')
+            .addStringOption(option => option
+                .setName('nom')
+                .setDescription('Le nom de l\'interserveur')
+                .setRequired(true)
+            )
+            .addStringOption(option => option
+                .setName('server')
+                .setDescription('Le serveur à quitter')
+                .setRequired(true)
+            )
+        )
         .setDMPermission(false),
     category: 'interserver',
     async execute(interaction){
@@ -625,6 +639,13 @@ module.exports = {
                     { name: 'Temps en secondes', value: interserver.maxspamtime.toString(), inline: true }
                 );
             }
+
+            // serveurs
+            var servers = '';
+            for(var i = 0; i < interserver.servers.length; i++){
+                servers += `> **${i + 1}** - **${interaction.client.guilds.cache.get(interserver.servers[i].id).name}** (${interserver.servers[i].id})\n`;
+            }
+            embed.addFields({ name: 'Serveurs', value: servers });
 
             await interaction.editReply({ embeds: [embed] });
         }else if(type == 'join'){
@@ -1008,6 +1029,85 @@ module.exports = {
                 .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
 
             await interaction.editReply({ embeds: [embed] });
+        } else if(type == 'leave-server') {
+            // check si l'user est admin ou pas
+            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+
+            // retrouve les options
+            var nom = interaction.options.getString('nom');
+            var serverid = interaction.options.getString('server');
+
+            // verifie si il y a un interserveur avec ce nom
+            let interserver = await interaction.client.interserversdb.findOne({ name: nom });
+            if(!interserver){
+                // envois un gentil petit message en embed a l'utilisateur
+                const embed = new EmbedBuilder()
+                    .setTitle('Erreur')
+                    .setDescription(`Il n'y a pas d'interserveur avec ce nom !`)
+                    .setColor('#FF0000')
+                    .setTimestamp()
+                    .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+            }
+
+            // verifie si l'utilisateur est le propriétaire de l'interserveur
+            if(interserver.owner != interaction.user.id){
+                // envois un gentil petit message en embed a l'utilisateur
+                const embed = new EmbedBuilder()
+                    .setTitle('Erreur')
+                    .setDescription(`Vous n'êtes pas le propriétaire de cet interserveur !`)
+                    .setColor('#FF0000')
+                    .setTimestamp()
+                    .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+            }
+
+            // verifie si le serveur est dans l'interserveur
+            if(!interserver.servers.find(server => server.id == serverid)){
+                // envois un gentil petit message en embed a l'utilisateur
+                const embed = new EmbedBuilder()
+                    .setTitle('Erreur')
+                    .setDescription(`Le serveur ${serverid} n'est pas dans l'interserveur ${nom} !`)
+                    .setColor('#FF0000')
+                    .setTimestamp()
+                    .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
+                    await interaction.editReply({ embeds: [embed] });
+                    return;
+            }
+
+            // supprime le serveur de l'interserveur
+            try{
+                await interaction.client.interserversdb.bulkWrite([
+                    interaction.client.bulkutility.pullInArray({
+                        'name': nom
+                    }, {
+                        'servers': {
+                            id: serverid
+                        }
+                    })
+                ]);
+            } catch(error){console.log(error)}
+
+            // envois un gentil petit message en embed a l'utilisateur
+            const embed = new EmbedBuilder()
+                .setTitle('Serveur retiré')
+                .setDescription(`Le serveur ${serverid} a été retiré de l'interserveur ${nom} avec succès !`)
+                .setColor('#00FF00')
+                .setTimestamp()
+                .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // refresh l'interserveur
+            interserver = await interaction.client.interserversdb.findOne({ name: nom });
+        
+            await interaction.client.modules.interserver.SendSystemMessage(
+                interserver, // interserver
+                `Le serveur ${server} a été retiré de l'interserveur !`, // nom du serveur
+                interaction.guild.iconURL() // icone du serveur
+            );
         }
     }
 };
