@@ -41,11 +41,16 @@ MapSchema.statics.SaveMap = async function (object) {
     // get the chunks collection length
     let chunksL = await Map.find({}).countDocuments();
     let chunks = [];
-    await Promise.all(Array.from({ length: chunksL }, async (_, i) => {
+    let i = 0;
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
+    await Promise.all(Array.from({ length: chunksL }, async () => {
         chunks.push(await Map.findOne({}).skip(i));
         process.stdout.clearLine();
         process.stdout.cursorTo(0);
         process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
+        i++;
     }));
     process.stdout.write("\n");
 
@@ -90,11 +95,16 @@ MapSchema.statics.GetMap = async function () {
     // get the chunks collection length
     let chunksL = await Map.find({}).countDocuments();
     let chunks = [];
-    await Promise.all(Array.from({ length: chunksL }, async (_, i) => {
+    let i = 0;
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
+    await Promise.all(Array.from({ length: chunksL }, async () => {
         chunks.push(await Map.findOne({}).skip(i));
         process.stdout.clearLine();
         process.stdout.cursorTo(0);
         process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
+        i++;
     }));
     process.stdout.write("\n");
 
@@ -102,25 +112,9 @@ MapSchema.statics.GetMap = async function () {
     
     // create a new object
     let object = {
-        chunks: []
+        chunks: chunks
     };
-    // for each chunk
-    i = 0;
-    await Promise.all(chunks.map(async (chunk) => {
-        // add it to the object
-        object.chunks.push({
-            position: {
-                x: chunk.position.x,
-                z: chunk.position.z
-            },
-            pixels: chunk.pixels
-        });
-        i++;
-        // remove last console.log and add a new one with the percent
-        process.stdout.clearLine();
-        process.stdout.cursorTo(0);
-        process.stdout.write("Fetching map... " + Math.round(i / chunks.length * 100) + "%");
-    }));
+
     // sauter une ligne avec process.stdout.write("\n");
     process.stdout.write("\n");
     console.log("Map fetched. Finished.");

@@ -68,7 +68,8 @@ const client = new Client({
 
 // version
 client.version = process.env.VERSION;
-client.discordjsversion = require("discord.js/package.json").version;
+let djsv = fs.readFileSync(path.join(__dirname, 'node_modules', 'discord.js', 'package.json'));
+client.discordjsversion = JSON.parse(djsv).version;
 client.telegrafversion = JSON.parse(fs.readFileSync(path.join(__dirname, 'node_modules', 'telegraf', 'package.json'))).version;
 
 // prefix

@@ -201,7 +201,7 @@ module.exports = {
                         name: server.name,
                         id: server.id,
                         count: server.memberCount,
-                        owner: await client.users.fetch(server.ownerId),
+                        owner: await interaction.client.users.fetch(server.ownerId),
                     });
                 }
 

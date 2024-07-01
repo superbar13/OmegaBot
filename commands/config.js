@@ -32,6 +32,28 @@ function getCat(name, toS) {
     return childs, cat;
 }
 
+// function getOptionInCat
+function getOptionInCat(tosearch, option, catObj, catSubObj) {
+    if(!catObj && !catSubObj) return;
+    // search the option in not showed (showed = false) categories
+    for(const [key, value] of Object.entries(tosearch)) {
+        if((value.type == 'databasecategory' || value.type == 'showedcategory') && !value.showed) {
+            option = value.childs[optionname] || Object.entries(value.childs).find(([key, value]) => value.displayname == optionname)[1];
+            if(!catObj) {
+                catObj = value;
+                catObj.name = key;
+            } else if(!catSubObj) {
+                catSubObj = value;
+                catSubObj.name = key;
+            }
+            tosearch = value.childs;
+            if(option) break;
+        }
+    }
+    if(!catObj && !catSubObj) return tosearch, option, catObj, catSubObj;
+    else return getOptionInCat(tosearch, option, catObj, catSubObj);
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('config')
@@ -293,10 +315,14 @@ module.exports = {
 
             // so a this point, tosearch is defined with the module, category and subcategory
             // we now check the option
-
             let option = tosearch[optionname] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionname)[1];
-            if(!option || (option.type == 'showedcategory' || option.type == 'databasecategory'))
-                return interaction.editReply({ content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
+            if(!option || ['showedcategory','databasecategory'].includes(option.type)) {
+                tosearch, option, catObj, catSubObj = getOptionInCat(tosearch, option, catObj, catSubObj);
+                if(!option || ['showedcategory','databasecategory'].includes(option.type))
+                    return interaction.editReply({
+                        content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true
+                    });
+            }
 
             if(!tosearch[optionname]) optionname = Object.keys(tosearch).find(key => tosearch[key].displayname == optionname);
         
@@ -862,7 +888,24 @@ module.exports = {
 
             // for options
             if (focusedOption === 'option') {
-                let filtered = filterModules(tosearch, focusedValue, 'displayname');
+                let newtosearch = [...tosearch];
+
+                // get all recursive options also when databasecategory or showedcategory with .showed = false
+                // and add it to the filtered array
+                // using filterModules                
+                function getOptionsInCat(tosearch, filtered, catObj, catSubObj) {
+                    for (const [key, option] of Object.entries(tosearch)) {
+                        if (['showedcategory', 'databasecategory'].includes(option.type) && option.showed == false) {
+                            getOptionsInCat(option.childs, filtered, catObj, catSubObj);
+                        } else {
+                            newtosearch.push(option.displayname);
+                        }
+                    }
+                }
+                getOptionsInCat(tosearch, filtered, choosenCategory, choosenSubcategory);
+
+                let filtered = filterModules(newtosearch, focusedValue, 'displayname');
+
                 filtered = filtered.filter(option =>
                     Object.entries(tosearch).some(([k, v]) => v.displayname == option && v.type !== 'showedcategory' && v.type !== 'databasecategory')
                 );
