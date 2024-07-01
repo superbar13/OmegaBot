@@ -20,6 +20,18 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 
+// function getCat
+function getCat(name, toS) {
+    let cat = toS[name] || Object.entries(toS).find(([key, value]) => value.displayname == name)[1];
+    if(!cat || (cat.type != 'showedcategory' && cat.type != 'databasecategory'))
+        return interaction.editReply({ content: `La catégorie \`${name}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
+    
+    cat.name = name;
+    let childs = cat.childs;
+    if(!toS[name]) cat.name = Object.keys(toS).find(key => toS[key].displayname == name);
+    return childs, cat;
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('config')
@@ -245,60 +257,39 @@ module.exports = {
         }
         if(interaction.options.getSubcommand() == 'set' || interaction.options.getSubcommand() == 'reset') {
             /////////////////////// DEBUT DE SELECTION ///////////////////////
-            const modules = interaction.client.modules;
 
-            // we get the module name
+            // get module and modulename
+            const modules = interaction.client.modules;
             let modulename = interaction.options.getString('module');
 
-            let choosenmodule = null;
+            // get module
+            let choosenmodule = modules[modulename] || Object.entries(modules).find(([key, value]) => value.showname == modulename)[1];
+
             // check if the module exists
-            if(!modules[modulename] && !Object.entries(modules).find(([key, value]) => value.showname == modulename)) {
-                return interaction.editReply({ content: `Le module \`${modulename}\` n'existe pas.`, ephemeral: true });
-            } else {
-                choosenmodule = modules[modulename] || Object.entries(modules).find(([key, value]) => value.showname == modulename)[1];
-                // get module REAL name (not displayname) (key of the module in the collection)
-                if(!modules[modulename]) modulename = Object.keys(modules).find(key => modules[key].showname == modulename);
-            }
+            if(!choosenmodule) return interaction.editReply({ content: `Le module \`${modulename}\` n'existe pas.`, ephemeral: true });
+
+            // get module REAL name
+            if(!modules[modulename]) modulename = Object.keys(modules).find(key => modules[key].showname == modulename);
             
             // check if the module has a guildconfig
             if(!choosenmodule.guildconfig) return interaction.editReply({ content: `Le module \`${modulename}\` n'a pas de configuration serveur.`, ephemeral: true });
-
-            // set the variable tosearch to the guildconfig of the module
-            let tosearch = choosenmodule.guildconfig;
-
-            let optioncategoryobject = null;
-            let optionsubcategoryobject = null;
-
-            // we get the option category
-            let optioncategory = interaction.options.getString('category');
-
-            // we get the option subcategory
-            let optionsubcategory = interaction.options.getString('subcategory');
 
             // we get the option name
             let optionname = interaction.options.getString('option');
             if(!optionname) return interaction.editReply({ content: `Vous devez spécifier une option à configurer.`, ephemeral: true });
 
-            if(optioncategory) {
-                // check if the option category exists in the module guildconfig
-                let choosencategory = tosearch[optioncategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optioncategory)[1];
-                if(!choosencategory || (choosencategory.type != 'showedcategory' && choosencategory.type != 'databasecategory'))
-                    return interaction.editReply({ content: `La catégorie \`${optioncategory}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
-                
-                if(!tosearch[optioncategory]) optioncategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optioncategory);
-                tosearch = choosencategory.childs;
-                optioncategoryobject = choosencategory;
+            // set the variable tosearch to the guildconfig of the module
+            let tosearch = choosenmodule.guildconfig;
 
-                if(optionsubcategory) {
-                    let choosensubcategory = tosearch[optionsubcategory] || Object.entries(tosearch).find(([key, value]) => value.displayname == optionsubcategory)[1];
-                    if(!choosensubcategory || (choosensubcategory.type != 'showedcategory' && choosensubcategory.type != 'databasecategory'))
-                        return interaction.editReply({ content: `La sous-catégorie \`${optionsubcategory}\` n'existe pas dans la catégorie \`${optioncategory}\` du module \`${modulename}\`.`, ephemeral: true });
-
-                    if(!tosearch[optionsubcategory]) optionsubcategory = Object.keys(tosearch).find(key => tosearch[key].displayname == optionsubcategory);
-                    tosearch = choosensubcategory.childs;
-                    optionsubcategoryobject = choosensubcategory;
-                }
-            }
+            // we get the categories
+            let oCat = interaction.options.getString('category');
+            let oSubCat = interaction.options.getString('subcategory');
+            
+            // get cat and sub
+            let catObj = null;
+            let catSubObj = null;
+            if(oCat) tosearch, catObj = getCat(oCat, tosearch);
+            if(oSubCat) tosearch, catSubObj = getCat(oSubCat, tosearch);
 
             // so a this point, tosearch is defined with the module, category and subcategory
             // we now check the option
@@ -310,12 +301,12 @@ module.exports = {
             if(!tosearch[optionname]) optionname = Object.keys(tosearch).find(key => tosearch[key].displayname == optionname);
         
             let updatestring = optionname
-            if(optioncategoryobject && optioncategoryobject?.type == 'databasecategory') {
-                server = server[optioncategory];
-                updatestring = `${optioncategory}.${optionname}`;
-                if(optionsubcategoryobject && optionsubcategoryobject?.type == 'databasecategory') {
-                    server = server[optioncategory][optionsubcategory];
-                    updatestring = `${optioncategory}.${optionsubcategory}.${optionname}`;
+            if(catObj && catObj?.type == 'databasecategory') {
+                server = server[catObj.name];
+                updatestring = `${catObj.name}.${optionname}`;
+                if(catSubObj && catSubObj?.type == 'databasecategory') {
+                    server = server[catObj.name][catSubObj.name];
+                    updatestring = `${catObj.name}.${catSubObj.name}.${optionname}`;
                 }
             }
             /////////////////////// FIN DE SELECTION ///////////////////////
