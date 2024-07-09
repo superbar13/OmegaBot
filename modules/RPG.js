@@ -1,151 +1,218 @@
-const fs = require('fs');
-const { createCanvas, loadImage } = require('@napi-rs/canvas')
+const { createCanvas } = require('@napi-rs/canvas')
 var PF = require('pathfinding');
 let ressources = {
     mining: {
         coal: {
             min: 1,
-            max: 25
+            max: 25,
+            name: 'Charbon',
+            emoji: '🪨'
         },
         iron: {
             min: 0,
-            max: 17
+            max: 17,
+            name: 'Fer',
+            emoji: '🔩'
         },
         gold: {
             min: 0,
-            max: 12
+            max: 12,
+            name: 'Or',
+            emoji: '🥇'
         },
         diamond: {
             min: 0,
-            max: 9
+            max: 9,
+            name: 'Diamant',
+            emoji: '💎'
         },
         emerald: {
             min: 0,
-            max: 7
+            max: 7,
+            name: 'Emeraude',
+            emoji: '💚'
         },
         ruby: {
             min: 0,
-            max: 5
+            max: 5,
+            name: 'Rubis',
+            emoji: '🔴'
         },
         sapphire: {
             min: 0,
-            max: 4
+            max: 4,
+            name: 'Saphir',
+            emoji: '🔷'
         },
         amethyst: {
             min: 0,
-            max: 2
+            max: 2,
+            name: 'Améthyste',
+            emoji: '💜'
         },
         uranium: {
             min: 0,
-            max: 1
+            max: 1,
+            name: 'Uranium',
+            emoji: '☢️'
         },
     },
     woodcutting: {
         oak: {
             min: 5,
-            max: 25
+            max: 25,
+            name: 'Chêne',
+            emoji: '🌳'
         },
         spruce: {
             min: 2,
-            max: 18
+            max: 18,
+            name: 'Sapin',
+            emoji: '🌲'
         },
         birch: {
             min: 1,
-            max: 14
+            max: 14,
+            name: 'Bouleau',
+            emoji: '🌿'
         },
         jungle: {
             min: 0,
-            max: 12
+            max: 12,
+            name: 'Palissandre',
+            emoji: '🌴'
         },
         acacia: {
             min: 0,
-            max: 4
+            max: 4,
+            name: 'Acacia',
+            emoji: '🌵'
         },
         darkoak: {
             min: 1,
-            max: 10
+            max: 10,
+            name: 'Chêne noir',
+            emoji: '🍂'
         },
         fir: {
             min: 0,
-            max: 8
+            max: 8,
+            name: 'Douglas',
+            emoji: '🎋'
         },
         pine: {
             min: 0,
-            max: 6
+            max: 6,
+            name: 'Pin',
+            emoji: '🌾'
         }
     },
     farming: {
         wheat: {
             min: 8,
-            max: 25
+            max: 25,
+            name: 'Blé',
+            emoji: '🌾'
         },
         potato: {
             min: 5,
-            max: 22
+            max: 22,
+            name: 'Pomme de terre',
+            emoji: '🥔'
         },
         carrot: {
             min: 3,
-            max: 20
+            max: 20,
+            name: 'Carotte',
+            emoji: '🥕'
         },
         strawberry: {
             min: 0,
-            max: 14
+            max: 14,
+            name: 'Fraise',
+            emoji: '🍓'
         },
         tomato: {
             min: 0,
-            max: 18
+            max: 18,
+            name: 'Tomate',
+            emoji: '🍅'
         },
         radish: {
             min: 0,
-            max: 16
+            max: 16,
+            name: 'Radis',
+            emoji: '🍀'
         },
         apple: {
             min: 0,
-            max: 24
+            max: 24,
+            name: 'Pomme',
+            emoji: '🍎'
         },
         orange: {
             min: 0,
-            max: 22
+            max: 22,
+            name: 'Orange',
+            emoji: '🍊'
         },
         pear: {
             min: 0,
-            max: 19
+            max: 19,
+            name: 'Poire',
+            emoji: '🍐'
         },
         banana: {
             min: 0,
-            max: 17
+            max: 17,
+            name: 'Banane',
+            emoji: '🍌'
         },
     },
     fishing: {
         salmon: {
             min: 0,
-            max: 24
+            max: 24,
+            name: 'Saumon',
+            emoji: '🐟'
         },
         sea_bream: {
             min: 0,
-            max: 20
+            max: 20,
+            name: 'Daurade',
+            emoji: '🐠'
         },
     },
     hunting: {
         rabbit: {
             min: 10,
-            max: 12
+            max: 12,
+            name: 'Lapin',
+            emoji: '🐇'
         },
         chicken: {
             min: 17,
-            max: 20
+            max: 20,
+            name: 'Poulet',
+            emoji: '🐔'
         },
         beef: {
             min: 0,
-            max: 12
+            max: 12,
+            name: 'Boeuf',
+            emoji: '🐄'
         },
         pig: {
             min: 15,
-            max: 18
+            max: 18,
+            name: 'Cochon',
+            emoji: '🐖'
         },
         sheep: {
             min: 12,
-            max: 15
+            max: 15,
+            name: 'Mouton',
+            emoji: '🐑'
         },
     }
 }
