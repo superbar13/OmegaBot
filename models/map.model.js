@@ -52,9 +52,7 @@ MapSchema.statics.SaveMap = async function (object) {
         process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
         i++;
     }));
-    process.stdout.write("\n");
-
-    console.log("Map fetched. (for saving)");
+    process.stdout.write("\nMap fetched (for saving).");
 
     i = 0;
     await Promise.all(object.chunks.map(async (chunk) => {
@@ -106,9 +104,7 @@ MapSchema.statics.GetMap = async function () {
         process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
         i++;
     }));
-    process.stdout.write("\n");
-
-    console.log("Map fetched (for getting).");
+    process.stdout.write("\nMap fetched (for getting).");
     
     // create a new object
     let object = {
