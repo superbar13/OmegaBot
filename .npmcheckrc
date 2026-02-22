@@ -1,0 +1,12 @@
+{
+    "ignore": [
+        "node-fetch"
+    ],
+    "depcheck": {
+        "ignoreMatches": [
+            "opusscript",
+            "sodium-native",
+            "node-fetch"
+        ]
+    }
+}
