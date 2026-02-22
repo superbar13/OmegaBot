@@ -2,27 +2,30 @@ const ratelimit = new Map();
 
 module.exports = {
     name: 'interaction',
-    run: async(client) => {
+    run: async (client) => {
         // interactionCreate event
         client.on('interactionCreate', async interaction => {
+            // Get the command name either from the interaction itself or from the customId (for components)
+            let commandName = interaction.commandName || interaction.customId?.split('_')[0] || interaction.customId;
+
             // check if the user is rate limited
-            let command = client.commands.get(interaction.commandName);
-            if(!command) return;
-            if(command.ratelimit) {
+            let command = client.commands.get(commandName);
+            if (!command) return;
+            if (command.ratelimit) {
                 let blockedtime = command.rateblockedtime || process.env.BLOCKEDTIME || 30;
                 let maxmessages = command.ratemaxmessages || process.env.MAXMESSAGES || 5;
                 let removeafter = command.rateremoveafter || process.env.REMOVEAFTER || 30;
 
                 // check if the user is in the ratelimit map
-                if(ratelimit.get(interaction.user.id)) {
+                if (ratelimit.get(interaction.user.id)) {
                     // if the user is ratelimited
-                    if(ratelimit.get(interaction.user.id).ratelimit) {
-                        if(ratelimit.get(interaction.user.id).time < Date.now()) {
+                    if (ratelimit.get(interaction.user.id).ratelimit) {
+                        if (ratelimit.get(interaction.user.id).time < Date.now()) {
                             // delete the user from the ratelimit map
                             ratelimit.delete(interaction.user.id);
                         } else {
                             // if the user has not been responded
-                            if(!ratelimit.get(interaction.user.id).responded) {
+                            if (!ratelimit.get(interaction.user.id).responded) {
                                 // send a message to the user
                                 await interaction.reply('Vous êtes bannis des commandes pendant ' + blockedtime + ' secondes pour avoir spammer les commandes, le bot ne répondra plus à vos commandes pendant ' + blockedtime + ' secondes.');
                                 // set responded to true
@@ -38,10 +41,10 @@ module.exports = {
                         setTimeout(() => {
                             ratelimit.get(interaction.user.id).nbofmessages--;
                             // if number of messages is 0, delete the user from the ratelimit map
-                            if(ratelimit.get(interaction.user.id).nbofmessages == 0 && !ratelimit.get(interaction.user.id).ratelimit) ratelimit.delete(interaction.user.id);
+                            if (ratelimit.get(interaction.user.id).nbofmessages == 0 && !ratelimit.get(interaction.user.id).ratelimit) ratelimit.delete(interaction.user.id);
                         }, removeafter * 1000);
                         // if the user has sent more than 5 messages in 30 seconds
-                        if(ratelimit.get(interaction.user.id).nbofmessages > maxmessages) {
+                        if (ratelimit.get(interaction.user.id).nbofmessages > maxmessages) {
                             // set ratelimit to true
                             ratelimit.get(interaction.user.id).ratelimit = true;
                             // set time to blockedtime seconds
@@ -52,14 +55,14 @@ module.exports = {
                             return;
                         }
                     }
-                // add the user to the ratelimit map
+                    // add the user to the ratelimit map
                 } else {
-                    ratelimit.set(interaction.user.id, {time: Date.now(), responded: false, nbofmessages: 1, ratelimit: false});
+                    ratelimit.set(interaction.user.id, { time: Date.now(), responded: false, nbofmessages: 1, ratelimit: false });
                     // wait blockedtime seconds to remove 1 to the number of messages
                     setTimeout(() => {
                         ratelimit.get(interaction.user.id).nbofmessages--;
                         // if number of messages is 0, delete the user from the ratelimit map
-                        if(ratelimit.get(interaction.user.id).nbofmessages == 0 && !ratelimit.get(interaction.user.id).ratelimit) ratelimit.delete(interaction.user.id);
+                        if (ratelimit.get(interaction.user.id).nbofmessages == 0 && !ratelimit.get(interaction.user.id).ratelimit) ratelimit.delete(interaction.user.id);
                     }, removeafter * 1000);
                 }
             }
@@ -68,59 +71,59 @@ module.exports = {
             if (interaction.isChatInputCommand()) {
                 // SLASH COMMAND
                 // Seulement sur les commandes message donc on return du vide
-                interaction.deleteToReply = async function () {}
+                interaction.deleteToReply = async function () { }
                 // execute the command
                 interaction.client = client;
-                if(!client.commands.get(interaction.commandName)) return;
-                if(client.commands.get(interaction.commandName).type == "slash") {
+                if (!client.commands.get(commandName)) return;
+                if (client.commands.get(commandName).type == "slash") {
                     try {
-                        client.commands.get(interaction.commandName).execute(interaction);
-                        console.log(`[SLASH] Commande slash ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        client.commands.get(commandName).execute(interaction);
+                        console.log(`[SLASH] Commande slash ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
                     } catch (error) {
                         interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, ephemeral: true });
-                        console.log(`[SLASH] Commande slash ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
+                        console.log(`[SLASH] Commande slash ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
                         console.log(error);
                     }
                 }
-            } else if (interaction.isStringSelectMenu()) {
+            } else if (interaction.isStringSelectMenu() || interaction.isChannelSelectMenu() || interaction.isRoleSelectMenu() || interaction.isUserSelectMenu() || interaction.isMentionableSelectMenu()) {
                 // SELECT MENU ON MESSAGE
                 // execute the command
                 interaction.client = client;
-                if(!client.commands.get(interaction.commandName)) return;
-                if(client.commands.get(interaction.commandName).type == "select") {
+                if (!client.commands.get(commandName)) return;
+                // Accept 'select' or matching the default command type fallback
+                if (['select', 'slash'].includes(client.commands.get(commandName).type)) {
                     try {
-                        client.commands.get(interaction.commandName).execute(interaction);
-                        console.log(`[SELECT] Select menu ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
-                    } catch (error) {}
-                }    
+                        client.commands.get(commandName).execute(interaction);
+                        console.log(`[SELECT] Select menu ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                    } catch (error) { }
+                }
             } else if (interaction.isUserContextMenuCommand()) {
                 // RIGHT CLICK COMMAND ON USER
                 // execute the command
-                console.log(client.commands.get(interaction.commandName));
                 interaction.client = client;
-                if(!client.commands.get(interaction.commandName)) return;
-                if(client.commands.get(interaction.commandName).type == "contextmenu") {
+                if (!client.commands.get(commandName)) return;
+                if (client.commands.get(commandName).type == "contextmenu") {
                     try {
-                        client.commands.get(interaction.commandName).execute(interaction)
-                        console.log(`[CONTEXT] Commande contextuelle ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        client.commands.get(commandName).execute(interaction)
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
                     } catch (error) {
                         interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, ephemeral: true });
-                        console.log(`[CONTEXT] Commande contextuelle ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
                         console.log(error);
                     }
-                }    
+                }
             } else if (interaction.isMessageContextMenuCommand()) {
                 // RIGHT CLICK COMMAND ON MESSAGE
                 // execute the command
                 interaction.client = client;
-                if(!client.commands.get(interaction.commandName)) return;
-                if(client.commands.get(interaction.commandName).type == "contextmenu") {
+                if (!client.commands.get(commandName)) return;
+                if (client.commands.get(commandName).type == "contextmenu") {
                     try {
-                        client.commands.get(interaction.commandName).execute(interaction);
-                        console.log(`[CONTEXT] Commande contextuelle ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        client.commands.get(commandName).execute(interaction);
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
                     } catch (error) {
                         interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, ephemeral: true });
-                        console.log(`[CONTEXT] Commande contextuelle ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
                         console.log(error);
                     }
                 }
@@ -128,34 +131,35 @@ module.exports = {
                 // BUTTON CLICK ON MESSAGE
                 // execute the command
                 interaction.client = client;
-                if(!client.commands.get(interaction.commandName)) return;
-                if(client.commands.get(interaction.commandName).type == "button") {
+                if (!client.commands.get(commandName)) return;
+                // Accept 'button' or matching the default command type fallback
+                if (['button', 'slash'].includes(client.commands.get(commandName).type)) {
                     try {
-                        client.commands.get(interaction.commandName).execute(interaction);
-                        console.log(`[BUTTON] Bouton ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
-                    } catch (error) {}
+                        client.commands.get(commandName).execute(interaction);
+                        console.log(`[BUTTON] Bouton ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                    } catch (error) { }
                 }
             } else if (interaction.isModalSubmit()) {
                 // MODAL SUBMIT ON MESSAGE
                 // execute the command
                 interaction.client = client;
-                if(!client.commands.get(interaction.commandName)) return;
-                if(client.commands.get(interaction.commandName).type == "modal") {
+                if (!client.commands.get(commandName)) return;
+                // Accept 'modal' or matching the default command type fallback
+                if (['modal', 'slash'].includes(client.commands.get(commandName).type)) {
                     try {
-                        client.commands.get(interaction.commandName).execute(interaction);
-                        console.log(`[MODAL] Modal ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
-                    } catch (error) {}
+                        client.commands.get(commandName).execute(interaction);
+                        console.log(`[MODAL] Modal ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                    } catch (error) { }
                 }
             } else if (interaction.isAutocomplete()) {
                 // AUTOCOMPLETE ON MESSAGE
                 // execute the command
                 interaction.client = client;
-                if(!client.commands.get(interaction.commandName)) return;
-                
+                if (!client.commands.get(commandName)) return;
+
                 try {
-                    client.commands.get(interaction.commandName).autocomplete(interaction);
-                    // console.log(`[AUTOCOMPLETE] Autocomplete ${interaction.commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
-                } catch (error) {}
+                    client.commands.get(commandName).autocomplete(interaction);
+                } catch (error) { }
             }
         })
     }
