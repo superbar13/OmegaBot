@@ -1,7 +1,5 @@
 {
-    "ignore": [
-        "node-fetch"
-    ],
+    "ignore": "node-fetch",
     "depcheck": {
         "ignoreMatches": [
             "opusscript",
