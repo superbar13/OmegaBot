@@ -67,31 +67,31 @@ module.exports = {
         ),
     category: 'rpg',
     telegram: 'disabled',
-    async execute(interaction){
-        if(!interaction?.client?.RPG) return interaction.reply({ content: '> ❌ Le module est en cours de chargement.'});
-        if(!interaction?.client?.config?.modules['rpg']?.enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.'});
+    async execute(interaction) {
+        if (!interaction?.client?.RPG) return interaction.reply({ content: '> ❌ Le module est en cours de chargement.' });
+        if (!interaction?.client?.config?.modules['rpg']?.enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.' });
 
         // defer reply
         await interaction.deferReply();
 
         // get subcommand
         const subcommand = interaction.options.getSubcommand();
-        if(subcommand == 'info') {
+        if (subcommand == 'info') {
             // get user in the database (interaction user)
             const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
-            if(!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // get clan in the database (user clan (via members) if he has one or name of the clan, priority to name of the clan)
             const clan = await interaction.client.clansdb.findOne({ $or: [{ name: interaction.options.getString('clan') }, { members: interaction.user.id }] });
-            if(!clan) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!clan) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // create embed with clan
             const embed = new EmbedBuilder()
-            .setTitle(`👥 Clan ${clan.name} 👥`)
-            .setDescription('Voici les informations du clan')
-            
+                .setTitle(`👥 Clan ${clan.name} 👥`)
+                .setDescription('Voici les informations du clan')
+
             // if clan has a logo
-            if(clan.logo) {
+            if (clan.logo) {
                 // create attachment
                 const attachment = new AttachmentBuilder(clan.logo, 'logo.png');
                 // add attachment to embed
@@ -100,7 +100,7 @@ module.exports = {
             }
 
             // if clan has a banner
-            if(clan.banner) {
+            if (clan.banner) {
                 // create attachment
                 const attachment = new AttachmentBuilder(clan.banner, 'banner.png');
                 // add attachment to embed
@@ -118,17 +118,17 @@ module.exports = {
 
             // send embed
             await interaction.editReply({ embeds: [embed] });
-        } else if(subcommand == 'create') {
+        } else if (subcommand == 'create') {
             // get user in the database (interaction user)
             const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
-            if(!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // get name of the clan
             const name = interaction.options.getString('name');
-            if(!name) return interaction.editReply({ content: '> ❌ Veuillez entrer un nom.'});
+            if (!name) return interaction.editReply({ content: '> ❌ Veuillez entrer un nom.' });
             // get description of the clan
             const description = interaction.options.getString('description');
-            if(!description) return interaction.editReply({ content: '> ❌ Veuillez entrer une description.'});
+            if (!description) return interaction.editReply({ content: '> ❌ Veuillez entrer une description.' });
 
             // create clan in the database
             const clan = await interaction.client.clansdb.createModel({
@@ -136,29 +136,38 @@ module.exports = {
                 description: description,
                 members: [interaction.user.id],
             });
-            if(!clan) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!clan) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // send embed
             await interaction.editReply({ content: `> ✅ Le clan **${clan.name}** a été créé avec succès !` });
-        } else if(subcommand == 'join') {
+        } else if (subcommand == 'join') {
             // get user in the database (interaction user)
             const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
-            if(!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
-           
+            if (!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
+
             // get clan in the database (name of the clan)
             const clan = await interaction.client.clansdb.findOne({ name: interaction.options.getString('clan') });
-            if(!clan) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!clan) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // if user is already in a clan
             const userClan = await interaction.client.clansdb.findOne({ members: interaction.user.id });
-            if(userClan) return interaction.editReply({ content: '> ❌ Vous êtes déjà dans un clan.'});
+            if (userClan) return interaction.editReply({ content: '> ❌ Vous êtes déjà dans un clan.' });
 
-            // add user to clan
+            // check if user is invited
+            if (!clan.invites.includes(interaction.user.id)) return interaction.editReply({ content: '> ❌ Vous n\'êtes pas invité dans ce clan.' });
+
+            // remove user from invites and add to members
+            clan.invites = clan.invites.filter((id) => id !== interaction.user.id);
             clan.members.push(interaction.user.id);
 
             // update clan in the database
             try {
                 await interaction.client.clansdb.bulkWrite([
+                    client.bulkutility.pullInArray({
+                        name: clan.name
+                    }, {
+                        invites: interaction.user.id
+                    }),
                     client.bulkutility.pushInArray({
                         name: clan.name
                     }, {
@@ -166,19 +175,19 @@ module.exports = {
                     })
                 ]);
             } catch (error) {
-                return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+                return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
             }
 
             // send embed
             await interaction.editReply({ content: `> ✅ Vous avez rejoint le clan **${clan.name}** avec succès !` });
-        } else if(subcommand == 'leave') {
+        } else if (subcommand == 'leave') {
             // get user in the database (interaction user)
             const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
-            if(!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // get clan in the database (user clan (via members) if he has one)
             const clan = await interaction.client.clansdb.findOne({ members: interaction.user.id });
-            if(!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.'});
+            if (!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.' });
 
             // remove user from clan
             clan.members = clan.members.filter(member => member != interaction.user.id);
@@ -193,33 +202,33 @@ module.exports = {
                     })
                 ]);
             } catch (error) {
-                return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+                return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
             }
 
             // send embed
             await interaction.editReply({ content: `> ✅ Vous avez quitté le clan **${clan.name}** avec succès !` });
 
             // if clan has no members
-            if(clan.members.length == 0) {
+            if (clan.members.length == 0) {
                 // delete clan
                 await interaction.client.clansdb.deleteOne({ name: clan.name });
             }
-        } else if(subcommand == 'invite') {
+        } else if (subcommand == 'invite') {
             // get user in the database (interaction user)
             const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
-            if(!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // get clan in the database (user clan (via members) if he has one)
             const clan = await interaction.client.clansdb.findOne({ members: interaction.user.id });
-            if(!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.'});
+            if (!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.' });
 
             // get user to invite
             const userToInvite = interaction.options.getUser('user');
-            if(!userToInvite) return interaction.editReply({ content: '> ❌ Veuillez mentionner un utilisateur.'});
+            if (!userToInvite) return interaction.editReply({ content: '> ❌ Veuillez mentionner un utilisateur.' });
 
             // if user to invite is already in a clan
             const userToInviteClan = await interaction.client.clansdb.findOne({ members: userToInvite.id });
-            if(userToInviteClan) return interaction.editReply({ content: '> ❌ L\'utilisateur est déjà dans un clan.'});
+            if (userToInviteClan) return interaction.editReply({ content: '> ❌ L\'utilisateur est déjà dans un clan.' });
 
             // add user to clan
             clan.invites.push(userToInvite.id);
@@ -234,30 +243,30 @@ module.exports = {
                     })
                 ]);
             } catch (error) {
-                return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+                return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
             }
 
             // send embed
             await interaction.editReply({ content: `> ✅ Vous avez invité **${userToInvite.tag}** dans le clan **${clan.name}** avec succès !` });
-        } else if(subcommand == 'kick') {
+        } else if (subcommand == 'kick') {
             // 2 things :
             // kick need to be done by a majority of members (50% + 1)
             // we don't need all members to kick from invites
 
             // get user in the database (interaction user)
             const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
-            if(!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+            if (!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
 
             // get clan in the database (user clan (via members) if he has one)
             const clan = await interaction.client.clansdb.findOne({ members: interaction.user.id });
-            if(!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.'});
+            if (!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.' });
 
             // get user to kick
             const userToKick = interaction.options.getUser('user');
-            if(!userToKick) return interaction.editReply({ content: '> ❌ Veuillez mentionner un utilisateur.'});
+            if (!userToKick) return interaction.editReply({ content: '> ❌ Veuillez mentionner un utilisateur.' });
 
             // check if user to kick is in the clan or in the invites
-            if(clan.invites.includes(userToKick.id)) {
+            if (clan.invites.includes(userToKick.id)) {
                 // remove user from clan
                 clan.invites = clan.invites.filter(member => member != userToKick.id);
 
@@ -271,16 +280,130 @@ module.exports = {
                         })
                     ]);
                 } catch (error) {
-                    return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+                    return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
                 }
 
                 // send embed
                 await interaction.editReply({ content: `> ✅ Vous avez exclu **${userToKick.tag}** du clan **${clan.name}** avec succès !` });
-            } else if(clan.members.includes(userToKick.id)) {
+            } else if (clan.members.includes(userToKick.id)) {
                 // wait for 50% + 1 members to vote
                 // create select menu
                 const selectMenu = new SelectMenuBuilder()
-                .setCustomId('kick')
+                    .setCustomId('kick')
+                    .setPlaceholder('Veuillez voter')
+                    .addOptions([
+                        {
+                            label: 'Oui',
+                            description: 'Voter oui',
+                            value: 'oui',
+                        },
+                        {
+                            label: 'Non',
+                            description: 'Voter non',
+                            value: 'non',
+                        },
+                    ]);
+
+                // create action row
+                const actionRow = new ActionRowBuilder()
+                    .addComponents(selectMenu);
+
+                // send embed
+                let embed = new EmbedBuilder()
+                    .setTitle('👥 Vote pour exclure un membre 👥')
+                    .setDescription(`**${userToKick.tag}** a été proposé pour être exclu du clan **${clan.name}**.\nVeuillez voter pour ou contre.`)
+                    .setColor('#FF0000');
+
+                // send embed
+                let message = await interaction.editReply({ embeds: [embed], components: [actionRow] });
+
+                // create collector
+                const collector = message.createMessageComponentCollector({ componentType: 3, time: 60000 });
+
+                // create variables
+                let yes = 0;
+                let no = 0;
+                let voters = [];
+
+                // on collect
+                collector.on('collect', async (interaction) => {
+                    // if user already voted
+                    if (voters.includes(interaction.user.id)) {
+                        // send embed
+                        await interaction.reply({ content: '> ❌ Vous avez déjà voté.', ephemeral: true });
+                    } else {
+                        // add user to voters
+                        voters.push(interaction.user.id);
+
+                        // if user voted yes
+                        if (interaction.values[0] == 'oui') {
+                            // add 1 to yes
+                            yes++;
+                        } else if (interaction.values[0] == 'non') {
+                            // add 1 to no
+                            no++;
+                        }
+
+                        // if all members voted
+                        if (yes + no == clan.members.length) {
+                            // stop collector
+                            collector.stop();
+                        }
+
+                        // send embed
+                        await interaction.reply({ content: '> ✅ Votre vote a été pris en compte.', ephemeral: true });
+                    }
+                });
+
+                // on end
+                collector.on('end', async (collected, reason) => {
+                    // if reason is time
+                    if (reason == 'time') {
+                        // send embed
+                        await interaction.editReply({ content: '> ❌ Le temps est écoulé.', components: [] });
+                    } else {
+                        // if yes > no
+                        if (yes > no) {
+                            // remove user from clan
+                            clan.members = clan.members.filter(member => member != userToKick.id);
+
+                            // update clan in the database
+                            try {
+                                await interaction.client.clansdb.bulkWrite([
+                                    client.bulkutility.pullInArray({
+                                        name: clan.name
+                                    }, {
+                                        members: userToKick.id
+                                    })
+                                ]);
+                            } catch (error) {
+                                return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
+                            }
+
+                            // send embed
+                            await interaction.editReply({ content: `> ✅ Vous avez exclu **${userToKick.tag}** du clan **${clan.name}** avec succès !`, components: [] });
+                        } else {
+                            // send embed
+                            await interaction.editReply({ content: '> ❌ Le vote n\'a pas été accepté.', components: [] });
+                        }
+                    }
+                });
+            } else return interaction.editReply({ content: '> ❌ L\'utilisateur n\'est pas dans le clan.' });
+        } else if (subcommand == 'remove') {
+            // remove need to be 50% + 1 of members
+
+            // get user in the database (interaction user)
+            const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
+            if (!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
+
+            // get clan in the database (user clan (via members) if he has one)
+            const clan = await interaction.client.clansdb.findOne({ members: interaction.user.id });
+            if (!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.' });
+
+            // wait for 50% + 1 members to vote
+            // create select menu
+            const selectMenu = new SelectMenuBuilder()
+                .setCustomId('remove')
                 .setPlaceholder('Veuillez voter')
                 .addOptions([
                     {
@@ -295,135 +418,21 @@ module.exports = {
                     },
                 ]);
 
-                // create action row
-                const actionRow = new ActionRowBuilder()
-                .addComponents(selectMenu);
-
-                // send embed
-                let embed = new EmbedBuilder()
-                .setTitle('👥 Vote pour exclure un membre 👥')
-                .setDescription(`**${userToKick.tag}** a été proposé pour être exclu du clan **${clan.name}**.\nVeuillez voter pour ou contre.`)
-                .setColor('#FF0000');
-
-                // send embed
-                let message = await interaction.editReply({ embeds: [embed], components: [actionRow] });
-
-                // create collector
-                const collector = message.createMessageComponentCollector({ componentType: 'SELECT_MENU', time: 60000 });
-
-                // create variables
-                let yes = 0;
-                let no = 0;
-                let voters = [];
-
-                // on collect
-                collector.on('collect', async (interaction) => {
-                    // if user already voted
-                    if(voters.includes(interaction.user.id)) {
-                        // send embed
-                        await interaction.reply({ content: '> ❌ Vous avez déjà voté.', ephemeral: true });
-                    } else {
-                        // add user to voters
-                        voters.push(interaction.user.id);
-
-                        // if user voted yes
-                        if(interaction.values[0] == 'oui') {
-                            // add 1 to yes
-                            yes++;
-                        } else if(interaction.values[0] == 'non') {
-                            // add 1 to no
-                            no++;
-                        }
-
-                        // if all members voted
-                        if(yes + no == clan.members.length) {
-                            // stop collector
-                            collector.stop();
-                        }
-
-                        // send embed
-                        await interaction.reply({ content: '> ✅ Votre vote a été pris en compte.', ephemeral: true });
-                    }
-                });
-
-                // on end
-                collector.on('end', async (collected, reason) => {
-                    // if reason is time
-                    if(reason == 'time') {
-                        // send embed
-                        await interaction.editReply({ content: '> ❌ Le temps est écoulé.', components: [] });
-                    } else {
-                        // if yes > no
-                        if(yes > no) {
-                            // remove user from clan
-                            clan.members = clan.members.filter(member => member != userToKick.id);
-
-                            // update clan in the database
-                            try {
-                                await interaction.client.clansdb.bulkWrite([
-                                    client.bulkutility.pullInArray({
-                                        name: clan.name
-                                    }, {
-                                        members: userToKick.id
-                                    })
-                                ]);
-                            } catch (error) {
-                                return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
-                            }
-
-                            // send embed
-                            await interaction.editReply({ content: `> ✅ Vous avez exclu **${userToKick.tag}** du clan **${clan.name}** avec succès !`, components: [] });
-                        } else {
-                            // send embed
-                            await interaction.editReply({ content: '> ❌ Le vote n\'a pas été accepté.', components: [] });
-                        }
-                    }
-                });
-            } else return interaction.editReply({ content: '> ❌ L\'utilisateur n\'est pas dans le clan.'});
-        } else if(subcommand == 'remove') {
-            // remove need to be 50% + 1 of members
-
-            // get user in the database (interaction user)
-            const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
-            if(!user) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
-
-            // get clan in the database (user clan (via members) if he has one)
-            const clan = await interaction.client.clansdb.findOne({ members: interaction.user.id });
-            if(!clan) return interaction.editReply({ content: '> ❌ Vous n\'êtes dans aucun clan.'});
-
-            // wait for 50% + 1 members to vote
-            // create select menu
-            const selectMenu = new SelectMenuBuilder()
-            .setCustomId('remove')
-            .setPlaceholder('Veuillez voter')
-            .addOptions([
-                {
-                    label: 'Oui',
-                    description: 'Voter oui',
-                    value: 'oui',
-                },
-                {
-                    label: 'Non',
-                    description: 'Voter non',
-                    value: 'non',
-                },
-            ]);
-
             // create action row
             const actionRow = new ActionRowBuilder()
-            .addComponents(selectMenu);
+                .addComponents(selectMenu);
 
             // send embed
             let embed = new EmbedBuilder()
-            .setTitle('👥 Vote pour supprimer un clan 👥')
-            .setDescription(`Le clan **${clan.name}** a été proposé pour être supprimé.\nVeuillez voter pour ou contre.`)
-            .setColor('#FF0000');
+                .setTitle('👥 Vote pour supprimer un clan 👥')
+                .setDescription(`Le clan **${clan.name}** a été proposé pour être supprimé.\nVeuillez voter pour ou contre.`)
+                .setColor('#FF0000');
 
             // send embed
             let message = await interaction.editReply({ embeds: [embed], components: [actionRow] });
 
             // create collector
-            const collector = message.createMessageComponentCollector({ componentType: 'SELECT_MENU', time: 60000 });
+            const collector = message.createMessageComponentCollector({ componentType: 3, time: 60000 });
 
             // create variables
             let yes = 0;
@@ -433,7 +442,7 @@ module.exports = {
             // on collect
             collector.on('collect', async (interaction) => {
                 // if user already voted
-                if(voters.includes(interaction.user.id)) {
+                if (voters.includes(interaction.user.id)) {
                     // send embed
                     await interaction.reply({ content: '> ❌ Vous avez déjà voté.', ephemeral: true });
                 } else {
@@ -441,16 +450,16 @@ module.exports = {
                     voters.push(interaction.user.id);
 
                     // if user voted yes
-                    if(interaction.values[0] == 'oui') {
+                    if (interaction.values[0] == 'oui') {
                         // add 1 to yes
                         yes++;
-                    } else if(interaction.values[0] == 'non') {
+                    } else if (interaction.values[0] == 'non') {
                         // add 1 to no
                         no++;
                     }
 
                     // if all members voted
-                    if(yes + no == clan.members.length) {
+                    if (yes + no == clan.members.length) {
                         // stop collector
                         collector.stop();
                     }
@@ -463,12 +472,12 @@ module.exports = {
             // on end
             collector.on('end', async (collected, reason) => {
                 // if reason is time
-                if(reason == 'time') {
+                if (reason == 'time') {
                     // send embed
                     await interaction.editReply({ content: '> ❌ Le temps est écoulé.', components: [] });
                 } else {
                     // if yes > no
-                    if(yes > no) {
+                    if (yes > no) {
                         // delete clan
                         await interaction.client.clansdb.deleteOne({ name: clan.name });
 
@@ -480,6 +489,6 @@ module.exports = {
                     }
                 }
             });
-        } else return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+        } else return interaction.editReply({ content: '> ❌ Une erreur est survenue.' });
     }
 }

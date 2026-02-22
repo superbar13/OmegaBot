@@ -1,4 +1,4 @@
-// rank command module to be used in index.js (but it's for guilds)
+// map command module to be used in index.js (but it's for guilds)
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
 
@@ -48,18 +48,18 @@ module.exports = {
         ),
     category: 'rpg',
     telegram: 'disabled',
-    async execute(interaction){
-        if(!interaction?.client?.RPG) return interaction.reply({ content: '> ❌ Le module est en cours de chargement.'});
-        if(!interaction?.client?.config?.modules['rpg']?.enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.'});
+    async execute(interaction) {
+        if (!interaction?.client?.RPG) return interaction.reply({ content: '> ❌ Le module est en cours de chargement.' });
+        if (!interaction?.client?.config?.modules['rpg']?.enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.' });
 
         // defer reply
         await interaction.deferReply();
 
         // get subcommand
         const subcommand = interaction.options.getSubcommand();
-            
+
         // if subcommand is show
-        if(subcommand === 'show'){
+        if (subcommand === 'show') {
             // get map in png format
             const map = await interaction.client.RPG.runRender();
 
@@ -68,19 +68,19 @@ module.exports = {
 
             // create embed
             const embed = new EmbedBuilder()
-            .setTitle('🗺️ Carte du RPG 🗺️')
-            .setDescription('Voici la carte du RPG')
-            .setImage('attachment://map.png')
-            .setColor(interaction.client.modules.randomcolor.getRandomColor())
-            .setTimestamp()
-            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
+                .setTitle('🗺️ Carte du RPG 🗺️')
+                .setDescription('Voici la carte du RPG')
+                .setImage('attachment://map.png')
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                .setTimestamp()
+                .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
 
             const playerpos = await interaction.client.RPG.getPlayerPosition(interaction.user.id);
-            if(playerpos){
+            if (playerpos) {
                 embed.addFields({
                     name: '📍 Votre position 📍',
                     value: `Vous êtes actuellement sur le chunk ${playerpos.chunk.x} ${playerpos.chunk.z} et dans la zone ${playerpos.pixel.x} ${playerpos.pixel.z}`
-                    + `\nVous êtes dans une zone de type ${interaction.client.RPG.getPixelType(playerpos.pixel.type).name} ${interaction.client.RPG.getPixelType(playerpos.pixel.type).emoji}`
+                        + `\nVous êtes dans une zone de type ${interaction.client.RPG.getPixelType(playerpos.pixel.type).name} ${interaction.client.RPG.getPixelType(playerpos.pixel.type).emoji}`
                 })
             } else {
                 embed.addFields({
@@ -91,17 +91,19 @@ module.exports = {
 
             // send embed
             await interaction.editReply({ embeds: [embed], files: [attachment] });
-        } else if(subcommand === 'travel'){
+        } else if (subcommand === 'travel') {
             // get x and y
-            const x = interaction.options.getString('x');
-            const y = interaction.options.getString('y');
+            const x = parseInt(interaction.options.getString('x'));
+            const y = parseInt(interaction.options.getString('y'));
+
+            if (isNaN(x) || isNaN(y)) return interaction.editReply({ content: '> ❌ Les coordonnées doivent être des nombres valides.' });
 
             const embed = new EmbedBuilder()
-            .setTitle('🗺️ Voyage 🗺️')
-            .setDescription(`Vous allez voyager vers la zone ${x} ${y} !`)
-            .setColor(interaction.client.modules.randomcolor.getRandomColor())
-            .setTimestamp()
-            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
+                .setTitle('🗺️ Voyage 🗺️')
+                .setDescription(`Vous allez voyager vers la zone ${x} ${y} !`)
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                .setTimestamp()
+                .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
 
             // send embed
             await interaction.editReply({ embeds: [embed] });
@@ -118,12 +120,12 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed] });
             }
 
-            async function callback2(travel){
+            async function callback2(travel) {
                 // create embed
                 const embed1 = new EmbedBuilder()
                     .setTitle('🗺️ Voyage 🗺️')
                     .setDescription(`Vous avez voyagé vers la zone ${x} ${y}. Zone de type ${travel?.type?.name}.`
-                    + `\nDurant ce voyage vous avez perdu ${travel?.eated} points de faim et ${travel?.watered} points de soif.`)
+                        + `\nDurant ce voyage vous avez perdu ${travel?.eated} points de faim et ${travel?.watered} points de soif.`)
                     .setColor(interaction.client.modules.randomcolor.getRandomColor())
                     .setTimestamp()
                     .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
@@ -135,7 +137,7 @@ module.exports = {
             const travel = await interaction.client.RPG.travel(interaction.user.id, x, y, callback, callback2);
 
             // if travel is false
-            if(!travel) return interaction.editReply({ content: '> ❌ Vous ne pouvez pas voyager vers cette zone.' });
+            if (!travel) return interaction.editReply({ content: '> ❌ Vous ne pouvez pas voyager vers cette zone.' });
 
             // if travel.finished is false
             /*
@@ -153,53 +155,53 @@ module.exports = {
                 return await interaction.editReply({ embeds: [embed] });
             }
             */
-        } else if(subcommand === 'info'){
-            let x = interaction.options.getString('x');
-            let y = interaction.options.getString('y');
+        } else if (subcommand === 'info') {
+            let x = parseInt(interaction.options.getString('x'));
+            let y = parseInt(interaction.options.getString('y'));
+
+            if (isNaN(x) || isNaN(y)) return interaction.editReply({ content: '> ❌ Les coordonnées doivent être des nombres valides.' });
 
             // get pixel
             const pixelAndChunk = interaction.client.RPG.chunkManager.getCoordPixelAndChunk(x, y);
-            console.log(pixelAndChunk);
+            if (!pixelAndChunk) return interaction.editReply({ content: '> ❌ Cette zone n\'existe pas.' });
+
             const pixel = pixelAndChunk.pixel;
-            console.log(pixel);
             const chunk = pixelAndChunk.chunk;
-            console.log(chunk);
             const pixelType = interaction.client.RPG.getPixelType(pixel.type);
-            console.log(pixelType);
 
             // create embed
             const embed = new EmbedBuilder()
-            .setTitle('🗺️ Zone 🗺️')
-            .setDescription(`Voici les informations sur la zone ${x} ${y}`)
-            .setColor(interaction.client.modules.randomcolor.getRandomColor())
-            .setTimestamp()
-            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
+                .setTitle('🗺️ Zone 🗺️')
+                .setDescription(`Voici les informations sur la zone ${x} ${y}`)
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                .setTimestamp()
+                .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
 
             embed.addFields({
                 name: '📍 Position 📍',
                 value: `Cette zone est de type ${pixelType.name} ${pixelType.emoji}`
-                + `\nIl y a actuellement ${pixel.players} joueur(s) sur cette zone`
-                + `\nIl y a actuellement ${pixel.monsters} monstre(s) sur cette zone`
+                    + `\nIl y a actuellement ${pixel.players || 0} joueur(s) sur cette zone`
+                    + `\nIl y a actuellement ${pixel.monsters || 0} monstre(s) sur cette zone`
             });
 
             // send embed
             await interaction.editReply({ embeds: [embed] });
-        } else if(subcommand === 'spawn'){
+        } else if (subcommand === 'spawn') {
             // spawn
             const spawn = await interaction.client.RPG.spawn(interaction.user.id);
-            if(!spawn) return interaction.editReply({ content: '> ❌ Vous avez déjà spawn !' });
+            if (!spawn) return interaction.editReply({ content: '> ❌ Vous avez déjà spawn !' });
 
             // create embed
             const embed = new EmbedBuilder()
-            .setTitle('🗺️ Spawn 🗺️')
-            .setDescription(`Jeune aventurier, vous avez spawn de façon aléatoire sur la zone ${spawn.x} ${spawn.z}, bonne chance !`)
-            .setColor(interaction.client.modules.randomcolor.getRandomColor())
-            .setTimestamp()
-            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
+                .setTitle('🗺️ Spawn 🗺️')
+                .setDescription(`Jeune aventurier, vous avez spawn de façon aléatoire sur la zone ${spawn.x} ${spawn.z}, bonne chance !`)
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                .setTimestamp()
+                .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
 
             // send embed
             await interaction.editReply({ embeds: [embed] });
-        } else if(subcommand === 'player') {
+        } else if (subcommand === 'player') {
             // get user
             const user = interaction.options.getUser('user') || interaction.user;
 
@@ -207,20 +209,20 @@ module.exports = {
             const player = await interaction.client.RPG.getPlayerPosition(user.id);
 
             // if player is false
-            if(!player) return interaction.editReply({ content: '> ❌ Ce joueur n\'a pas encore spawn !' });
+            if (!player) return interaction.editReply({ content: '> ❌ Ce joueur n\'a pas encore spawn !' });
 
             // create embed
             const embed = new EmbedBuilder()
-            .setTitle('🗺️ Joueur 🗺️')
-            .setDescription(`Voici les informations de position sur le joueur ${user.username}`)
-            .setColor(interaction.client.modules.randomcolor.getRandomColor())
-            .setTimestamp()
-            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
+                .setTitle('🗺️ Joueur 🗺️')
+                .setDescription(`Voici les informations de position sur le joueur ${user.username}`)
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                .setTimestamp()
+                .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
 
             embed.addFields({
                 name: '📍 Position 📍',
                 value: `Ce joueur est actuellement dans le chunk ${player.chunk.x} ${player.chunk.z} et dans la zone ${player.pixel.x} ${player.pixel.z}`
-                + `\nIl est dans une zone de type ${interaction.client.RPG.getPixelType(player.pixel.type).name} ${interaction.client.RPG.getPixelType(player.pixel.type).emoji}`
+                    + `\nIl est dans une zone de type ${interaction.client.RPG.getPixelType(player.pixel.type).name} ${interaction.client.RPG.getPixelType(player.pixel.type).emoji}`
             });
 
             // send embed

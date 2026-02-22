@@ -172,7 +172,7 @@ module.exports = {
 
             function createList() {
                 return (inventory.map((item, index) => {
-                    return `${item.quantity} - ${item.id.name} - ${item.quantity}`;
+                    return `${item.quantity}x ${item.id.name}`;
                 }).slice((page - 1) * perpage, page * perpage).join('\n')) || 'Aucun';
             }
 
@@ -291,8 +291,14 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed] });
             } else if(subcommand == 'job') {
                 // get job in the database (user job if he has one or name of the job)
-                const job = await interaction.client.jobsdb.findOne({ id: interaction.options.getString('métier') || user.rpg.business.job });
-                if(!job) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+                let jobQuery = {};
+                if (interaction.options.getString('métier')) {
+                    jobQuery = { name: interaction.options.getString('métier') };
+                } else if (user.rpg.business.job) {
+                    jobQuery = { _id: user.rpg.business.job };
+                }
+                const job = await interaction.client.jobsdb.findOne(jobQuery);
+                if(!job) return interaction.editReply({ content: '> ❌ Une erreur est survenue (métier introuvable).'});
 
                 // create embed with job
                 const embed = new EmbedBuilder()
@@ -317,8 +323,9 @@ module.exports = {
                 await interaction.editReply({ embeds: [embed] });
             } else if(subcommand == 'work' || subcommand == 'daily') {
                 // get job in the database (user job if he has one)
-                const job = await interaction.client.jobsdb.findOne({ id: user.rpg.business.job });
-                if(!job) return interaction.editReply({ content: '> ❌ Une erreur est survenue.'});
+                if (!user.rpg.business.job) return interaction.editReply({ content: '> ❌ Vous n\'avez pas de métier.' });
+                const job = await interaction.client.jobsdb.findOne({ _id: user.rpg.business.job });
+                if(!job) return interaction.editReply({ content: '> ❌ Une erreur est survenue (métier introuvable).'});
 
                 // get random number between min and max
                 const money = Math.floor(Math.random() * (job.money.max - job.money.min + 1) + job.money.min);

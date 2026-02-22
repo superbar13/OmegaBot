@@ -288,24 +288,24 @@ module.exports = {
         )
         .setDMPermission(false),
     category: 'interserver',
-    async execute(interaction){
+    async execute(interaction) {
         await interaction.deferReply();
-        if(!interaction.client.config.modules['interserver']?.enabled) return interaction.editReply({ content: 'Le module interserver est désactivé !', ephemeral: true });
+        if (!interaction.client.config.modules['interserver']?.enabled) return interaction.editReply({ content: 'Le module interserver est désactivé !', ephemeral: true });
         // retrouve la sous-commande
         var type = interaction.options.getSubcommand();
-        if(type == 'create'){
+        if (type == 'create') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
-            if(nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', ephemeral: true });
+            if (nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', ephemeral: true });
             var channel = interaction.options.getChannel('channel');
             var description = interaction.options.getString('description');
-            if(description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', ephemeral: true });
+            if (description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', ephemeral: true });
             var private = interaction.options.getBoolean('private');
             var keycode = interaction.options.getString('keycode');
-            if(keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', ephemeral: true });
+            if (keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', ephemeral: true });
             var invites = interaction.options.getBoolean('invites');
             var antispam = interaction.options.getBoolean('antispam');
             var antilinks = interaction.options.getBoolean('antilinks');
@@ -313,27 +313,27 @@ module.exports = {
             var pictures = interaction.options.getBoolean('pictures');
             var gifs = interaction.options.getBoolean('gifs');
             var logo = interaction.options.getString('logo');
-            if(!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
+            if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
             var banner = interaction.options.getString('banner');
-            if(!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', ephemeral: true });
+            if (!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', ephemeral: true });
             var bannedlinks = interaction.options.getString('bannedlinks');
-            if(bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
             bannedlinks = bannedlinks.split(',').map(link => link.trim());
-            for(var i = 0; i < bannedlinks.length; i++){
-                if(bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if(!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', ephemeral: true });
+            for (var i = 0; i < bannedlinks.length; i++) {
+                if (bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
+                if (!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', ephemeral: true });
             }
             var bannedwords = interaction.options.getString('bannedwords');
-            if(bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
             bannedwords = bannedwords.split(',').map(link => link.trim());
-            for(var i = 0; i < bannedwords.length; i++){
-                if(bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if(bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', ephemeral: true });
+            for (var i = 0; i < bannedwords.length; i++) {
+                if (bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
+                if (bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', ephemeral: true });
             }
             var maxspamcount = interaction.options.getString('maxspamcount');
-            if(maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', ephemeral: true });
+            if (maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', ephemeral: true });
             var maxspamtime = interaction.options.getString('maxspamtime');
-            if(maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', ephemeral: true });
+            if (maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', ephemeral: true });
 
             // verifie si il n'y a pas deja un interserveur avec ce nom ou ce server et salon
             let interserver = await interaction.client.interserversdb.findOne(
@@ -344,7 +344,7 @@ module.exports = {
                     ]
                 }
             );
-            if(interserver){
+            if (interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -357,13 +357,13 @@ module.exports = {
             }
 
             let webhook;
-            try{
+            try {
                 // if not, create it
                 webhook = await channel.createWebhook({
                     name: 'Interserver',
                     avatar: interaction.client.user.avatarURL()
                 });
-            }catch(err){
+            } catch (err) {
                 console.log(`[WEBHOOK] There was an error creating the webhook: ${err}`.red);
                 webhook = {
                     id: null,
@@ -399,7 +399,7 @@ module.exports = {
                 maxspamcount: maxspamcount,
                 maxspamtime: maxspamtime
             });
-            
+
             // envois un gentil petit message en embed a l'utilisateur
             const embed = new EmbedBuilder()
                 .setTitle('Interserveur créé')
@@ -415,16 +415,16 @@ module.exports = {
                 `L'interserveur a été créé dans ce salon !`, // nom du serveur
                 interaction.guild.iconURL() // icone du serveur
             );
-        }else if(type == 'delete'){
+        } else if (type == 'delete') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -437,7 +437,7 @@ module.exports = {
             }
 
             // verifie si l'utilisateur est le propriétaire de l'interserveur
-            if(interserver.owner != interaction.user.id){
+            if (interserver.owner != interaction.user.id) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -467,19 +467,19 @@ module.exports = {
                 .setTimestamp()
                 .setFooter({ text: `Interserveur créé par ${interaction.user.username}`, iconURL: interaction.user.avatarURL() });
             await interaction.editReply({ embeds: [embed] });
-        }else if(type == 'modify'){
+        } else if (type == 'modify') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
-            if(nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', ephemeral: true });
+            if (nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', ephemeral: true });
             var channel = interaction.options.getChannel('channel');
             var description = interaction.options.getString('description');
-            if(description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', ephemeral: true });
+            if (description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', ephemeral: true });
             var private = interaction.options.getBoolean('private');
             var keycode = interaction.options.getString('keycode');
-            if(keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', ephemeral: true });
+            if (keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', ephemeral: true });
             var invites = interaction.options.getBoolean('invites');
             var antispam = interaction.options.getBoolean('antispam');
             var antilinks = interaction.options.getBoolean('antilinks');
@@ -487,31 +487,31 @@ module.exports = {
             var pictures = interaction.options.getBoolean('pictures');
             var gifs = interaction.options.getBoolean('gifs');
             var logo = interaction.options.getString('logo');
-            if(!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
+            if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
             var banner = interaction.options.getString('banner');
-            if(!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', ephemeral: true });
+            if (!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', ephemeral: true });
             var bannedlinks = interaction.options.getString('bannedlinks');
-            if(bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
             bannedlinks = bannedlinks.split(',').map(link => link.trim());
-            for(var i = 0; i < bannedlinks.length; i++){
-                if(bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if(!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', ephemeral: true });
+            for (var i = 0; i < bannedlinks.length; i++) {
+                if (bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
+                if (!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', ephemeral: true });
             }
             var bannedwords = interaction.options.getString('bannedwords');
-            if(bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
             bannedwords = bannedwords.split(',').map(link => link.trim());
-            for(var i = 0; i < bannedwords.length; i++){
-                if(bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if(bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', ephemeral: true });
+            for (var i = 0; i < bannedwords.length; i++) {
+                if (bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
+                if (bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', ephemeral: true });
             }
             var maxspamcount = interaction.options.getString('maxspamcount');
-            if(maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', ephemeral: true });
+            if (maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', ephemeral: true });
             var maxspamtime = interaction.options.getString('maxspamtime');
-            if(maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', ephemeral: true });
+            if (maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', ephemeral: true });
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -524,7 +524,7 @@ module.exports = {
             }
 
             // verifie si l'utilisateur est le propriétaire de l'interserveur
-            if(interserver.owner != interaction.user.id){
+            if (interserver.owner != interaction.user.id) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -563,7 +563,7 @@ module.exports = {
                 .setTimestamp()
                 .setFooter({ text: `Interserveur créé par ${interaction.user.username}`, iconURL: interaction.user.avatarURL() });
             await interaction.editReply({ embeds: [embed] });
-        }else if(type == 'list'){
+        } else if (type == 'list') {
             // retrouve les interserveurs
             let interservers = await interaction.client.interserversdb.find({});
 
@@ -574,12 +574,19 @@ module.exports = {
                 .setColor('#00FF00')
                 .setTimestamp()
                 .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-            for(let interserver of interservers){
-                if(interserver.private && interserver.owner != interaction.user.id) continue;
+            for (let interserver of interservers) {
+                if (interserver.private && interserver.owner != interaction.user.id) continue;
                 // check if the user is in this server
                 let user;
-                if(interaction.guild.members.cache.has(interserver.owner)) user = `<@${interserver.owner}> (${interaction.guild.members.cache.get(interserver.owner).user.tag})`;
-                else user = await interaction.client.users.cache.get(interserver.owner).tag;
+                if (interaction.guild.members.cache.has(interserver.owner)) user = `<@${interserver.owner}> (${interaction.guild.members.cache.get(interserver.owner).user.tag})`;
+                else {
+                    try {
+                        let fetchedUser = await interaction.client.users.fetch(interserver.owner);
+                        user = fetchedUser.tag;
+                    } catch (err) {
+                        user = "Utilisateur inconnu";
+                    }
+                }
                 embed.addFields(
                     {
                         name: interserver.name + (interserver.private ? ' 🔒' : ''),
@@ -588,13 +595,13 @@ module.exports = {
                 );
             }
             await interaction.editReply({ embeds: [embed] });
-        }else if(type == 'info'){
+        } else if (type == 'info') {
             // retrouve les options
             var nom = interaction.options.getString('nom');
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -614,9 +621,9 @@ module.exports = {
                 .setTimestamp()
                 .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() })
                 .addFields(
-                    { name: 'Description', value: interserver.description.length > 0 ? interserver.description : 'Aucune description'},
+                    { name: 'Description', value: interserver.description.length > 0 ? interserver.description : 'Aucune description' },
                     { name: 'Serveurs', value: interserver.servers.length.toString(), inline: true },
-                    { name: 'Propriétaire', value: `${interaction.guild.members.cache.has(interserver.owner) ? '<@' + interserver.owner + '> (' + interaction.client.users.cache.get(interserver.owner).tag +')' : interaction.client.users.cache.get(interserver.owner).tag}`, inline: true },
+                    { name: 'Propriétaire', value: `${interaction.guild.members.cache.has(interserver.owner) ? '<@' + interserver.owner + '> (' + interaction.client.users.cache.get(interserver.owner).tag + ')' : interaction.client.users.cache.get(interserver.owner).tag}`, inline: true },
                     { name: 'Privé', value: interserver.private ? '<:check:848664730838499409> Oui' : '<:erreur:848664731098153030> Non', inline: true },
                     { name: 'Invitations', value: interserver.invites ? '<:check:848664730838499409> Oui' : '<:erreur:848664731098153030> Non', inline: true },
                     { name: 'Antispam', value: interserver.antispam ? '<:check:848664730838499409> Oui' : '<:erreur:848664731098153030> Non', inline: true },
@@ -630,10 +637,10 @@ module.exports = {
                 // logo et bannière
                 .setImage(interserver.banner)
                 .setThumbnail(interserver.logo);
-            if(interserver.private && interserver.owner == interaction.user.id) embed.addFields(
+            if (interserver.private && interserver.owner == interaction.user.id) embed.addFields(
                 { name: 'Keycode', value: interserver.keycode, inline: true }
             );
-            if(interserver.antispam){
+            if (interserver.antispam) {
                 embed.addFields(
                     { name: 'Nombre maximum de messages autorisés en un certain temps', value: interserver.maxspamcount.toString(), inline: true },
                     { name: 'Temps en secondes', value: interserver.maxspamtime.toString(), inline: true }
@@ -642,15 +649,15 @@ module.exports = {
 
             // serveurs
             var servers = '';
-            for(var i = 0; i < interserver.servers.length; i++){
+            for (var i = 0; i < interserver.servers.length; i++) {
                 servers += `> **${i + 1}** - **${interaction.client.guilds.cache.get(interserver.servers[i].id).name}** (${interserver.servers[i].id})\n`;
             }
             embed.addFields({ name: 'Serveurs', value: servers });
 
             await interaction.editReply({ embeds: [embed] });
-        }else if(type == 'join'){
+        } else if (type == 'join') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -659,7 +666,7 @@ module.exports = {
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -672,9 +679,9 @@ module.exports = {
             }
 
             // verifie si l'interserveur est privé
-            if(interserver.private){
+            if (interserver.private) {
                 // verifie si l'utilisateur a donné le keycode
-                if(!keycode){
+                if (!keycode) {
                     // envois un gentil petit message en embed a l'utilisateur
                     const embed = new EmbedBuilder()
                         .setTitle('Erreur')
@@ -684,9 +691,9 @@ module.exports = {
                         .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
                     await interaction.editReply({ embeds: [embed] });
                     return;
-                }else{
+                } else {
                     // verifie si le keycode est le bon
-                    if(interserver.keycode != keycode){
+                    if (interserver.keycode != keycode) {
                         // envois un gentil petit message en embed a l'utilisateur
                         const embed = new EmbedBuilder()
                             .setTitle('Erreur')
@@ -701,7 +708,7 @@ module.exports = {
             }
 
             // verifie si l'utilisateur est deja dans l'interserveur
-            if(interserver.servers.find(server => server.id == interaction.guild.id)){
+            if (interserver.servers.find(server => server.id == interaction.guild.id)) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -714,13 +721,13 @@ module.exports = {
             }
 
             let webhook;
-            try{
+            try {
                 // if not, create it
                 webhook = await channel.createWebhook({
                     name: 'Interserver',
                     avatar: interaction.client.user.avatarURL()
                 });
-            }catch(err){
+            } catch (err) {
                 console.log(`[WEBHOOK] There was an error creating the webhook: ${err}`.red);
                 webhook = {
                     id: null,
@@ -729,7 +736,7 @@ module.exports = {
             }
 
             // ajoute le serveur a l'interserveur
-            try{
+            try {
                 await interaction.client.interserversdb.bulkWrite([
                     interaction.client.bulkutility.pushInArray({
                         'name': nom
@@ -744,7 +751,7 @@ module.exports = {
                         }
                     })
                 ]);
-            }catch(error){console.log(error)}
+            } catch (error) { console.log(error) }
 
             // envois un gentil petit message en embed a l'utilisateur
             const embed = new EmbedBuilder()
@@ -763,16 +770,16 @@ module.exports = {
                 `Le serveur ${interaction.guild.name} a rejoint l'interserveur !`, // nom du serveur
                 interaction.guild.iconURL() // icone du serveur
             );
-        }else if(type == 'leave'){
+        } else if (type == 'leave') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -785,7 +792,7 @@ module.exports = {
             }
 
             // verifie si l'utilisateur est deja dans l'interserveur
-            if(!interserver.servers.find(server => server.id == interaction.guild.id)){
+            if (!interserver.servers.find(server => server.id == interaction.guild.id)) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -798,7 +805,7 @@ module.exports = {
             }
 
             // supprime le serveur de l'interserveur
-            try{
+            try {
                 await interaction.client.interserversdb.bulkWrite([
                     interaction.client.bulkutility.pullInArray({
                         'name': nom
@@ -808,7 +815,7 @@ module.exports = {
                         }
                     })
                 ]);
-            }catch(error){console.log(error)}
+            } catch (error) { console.log(error) }
 
             // envois un gentil petit message en embed a l'utilisateur
             const embed = new EmbedBuilder()
@@ -821,15 +828,15 @@ module.exports = {
 
             // refresh l'interserveur
             interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            
+
             await interaction.client.modules.interserver.SendSystemMessage(
                 interserver, // interserver
                 `Le serveur ${interaction.guild.name} a quitté l'interserveur !`, // nom du serveur
                 interaction.guild.iconURL() // icone du serveur
             );
-        } else if(type == 'ban') {
+        } else if (type == 'ban') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -837,7 +844,7 @@ module.exports = {
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -845,12 +852,12 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // verifie si l'utilisateur est le propriétaire de l'interserveur
-            if(interserver.owner != interaction.user.id){
+            if (interserver.owner != interaction.user.id) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -858,12 +865,12 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // ban l'utilisateur
-            try{
+            try {
                 await interaction.client.interserversdb.bulkWrite([
                     interaction.client.bulkutility.pushInArray({
                         'name': nom
@@ -871,7 +878,7 @@ module.exports = {
                         'bannedusers': user.id
                     })
                 ]);
-            }catch(error){console.log(error)}
+            } catch (error) { console.log(error) }
 
             // envois un gentil petit message en embed a l'utilisateur
             const embed = new EmbedBuilder()
@@ -880,7 +887,7 @@ module.exports = {
                 .setColor('#00FF00')
                 .setTimestamp()
                 .setFooter({ text: `Interserveur créé par ${interaction.user.username}`, iconURL: interaction.user.avatarURL() });
-            
+
             await interaction.editReply({ embeds: [embed] });
 
             // refresh l'interserveur
@@ -891,9 +898,9 @@ module.exports = {
                 `L'utilisateur ${user.tag} a été banni de l'interserveur !`, // nom du serveur
                 user.avatarURL() // icone du serveur
             );
-        } else if(type == 'unban') {
+        } else if (type == 'unban') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -901,7 +908,7 @@ module.exports = {
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -909,12 +916,12 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // verifie si l'utilisateur est le propriétaire de l'interserveur
-            if(interserver.owner != interaction.user.id){
+            if (interserver.owner != interaction.user.id) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -922,12 +929,12 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // unban l'utilisateur
-            try{
+            try {
                 await interaction.client.interserversdb.bulkWrite([
                     interaction.client.bulkutility.pullInArray({
                         'name': nom
@@ -935,7 +942,7 @@ module.exports = {
                         'bannedusers': user.id
                     })
                 ]);
-            }catch(error){console.log(error)}
+            } catch (error) { console.log(error) }
 
             // envois un gentil petit message en embed a l'utilisateur
             const embed = new EmbedBuilder()
@@ -946,14 +953,14 @@ module.exports = {
                 .setFooter({ text: `Interserveur créé par ${interaction.user.username}`, iconURL: interaction.user.avatarURL() });
 
             await interaction.editReply({ embeds: [embed] });
-        } else if(type == 'remove-message') {
+        } else if (type == 'remove-message') {
             // retrouve les options
             var nom = interaction.options.getString('nom');
             var message1 = interaction.options.getString('message');
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -961,22 +968,22 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // cherchons le message parmis les serveurs channels de l'interserveur
             let message;
-            for(let serveur of interserver.servers){
+            for (let serveur of interserver.servers) {
                 let guild = interaction.client.guilds.cache.get(serveur.id);
-                if(!guild) return;
+                if (!guild) return;
                 let channel = guild.channels.cache.get(serveur.channel);
-                if(!channel) return;
+                if (!channel) return;
                 let msg;
-                try{
+                try {
                     msg = await channel.messages.fetch(message1);
-                }catch(err){}
-                if(msg) {
+                } catch (err) { }
+                if (msg) {
                     message = {
                         id: msg,
                         guild: guild,
@@ -986,10 +993,10 @@ module.exports = {
                     break;
                 }
             }
-            if(!message) return interaction.editReply({ content: 'Le message n\'a pas été trouvé !', ephemeral: true });
+            if (!message) return interaction.editReply({ content: 'Le message n\'a pas été trouvé !', ephemeral: true });
 
             // verifie si l'utilisateur est le propriétaire de l'interserveur ou, celui qui a envoyé le message
-            if(interserver.owner != interaction.user.id && message.user != interaction.user.id){
+            if (interserver.owner != interaction.user.id && message.user != interaction.user.id) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -997,23 +1004,23 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // on va supprimer le message original
             message.id.delete();
 
             // puis on va parcourir les autres serveurs a la recherche d'un embed author name avec [id-du-message]
-            for(let serveur of interserver.servers){
+            for (let serveur of interserver.servers) {
                 let guild = interaction.client.guilds.cache.get(serveur.id);
-                if(!guild) return;
+                if (!guild) return;
                 let channel = guild.channels.cache.get(serveur.channel);
-                if(!channel) return;
+                if (!channel) return;
                 let messages = await channel.messages.fetch({ limit: 100 });
-                for(let msg of messages){
+                for (let msg of messages) {
                     msg = msg[1];
-                    if(msg?.embeds[0]?.author?.name?.endsWith(`[${message.id.id}]`)) {
+                    if (msg?.embeds[0]?.author?.name?.endsWith(`[${message.id.id}]`)) {
                         msg.delete();
                         break;
                     }
@@ -1029,9 +1036,9 @@ module.exports = {
                 .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
 
             await interaction.editReply({ embeds: [embed] });
-        } else if(type == 'leave-server') {
+        } else if (type == 'leave-server') {
             // check si l'user est admin ou pas
-            if(!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -1039,7 +1046,7 @@ module.exports = {
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
-            if(!interserver){
+            if (!interserver) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -1047,12 +1054,12 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // verifie si l'utilisateur est le propriétaire de l'interserveur
-            if(interserver.owner != interaction.user.id){
+            if (interserver.owner != interaction.user.id) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -1060,12 +1067,12 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // verifie si le serveur est dans l'interserveur
-            if(!interserver.servers.find(server => server.id == serverid)){
+            if (!interserver.servers.find(server => server.id == serverid)) {
                 // envois un gentil petit message en embed a l'utilisateur
                 const embed = new EmbedBuilder()
                     .setTitle('Erreur')
@@ -1073,12 +1080,12 @@ module.exports = {
                     .setColor('#FF0000')
                     .setTimestamp()
                     .setFooter({ text: `OmegaBot is the best`, iconURL: interaction.user.avatarURL() });
-                    await interaction.editReply({ embeds: [embed] });
-                    return;
+                await interaction.editReply({ embeds: [embed] });
+                return;
             }
 
             // supprime le serveur de l'interserveur
-            try{
+            try {
                 await interaction.client.interserversdb.bulkWrite([
                     interaction.client.bulkutility.pullInArray({
                         'name': nom
@@ -1088,7 +1095,7 @@ module.exports = {
                         }
                     })
                 ]);
-            } catch(error){console.log(error)}
+            } catch (error) { console.log(error) }
 
             // envois un gentil petit message en embed a l'utilisateur
             const embed = new EmbedBuilder()
@@ -1102,10 +1109,10 @@ module.exports = {
 
             // refresh l'interserveur
             interserver = await interaction.client.interserversdb.findOne({ name: nom });
-        
+
             await interaction.client.modules.interserver.SendSystemMessage(
                 interserver, // interserver
-                `Le serveur ${server} a été retiré de l'interserveur !`, // nom du serveur
+                `Le serveur ${interaction.client.guilds.cache.get(serverid)?.name || serverid} a été retiré de l'interserveur !`, // nom du serveur
                 interaction.guild.iconURL() // icone du serveur
             );
         }
