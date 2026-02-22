@@ -13,8 +13,7 @@ module.exports = {
         .setDMPermission(false),
     category: 'music',
     ratelimit: true,
-    async execute(interaction){
-        if(!interaction.client.config.modules['radio'].enabled) return interaction.reply({ content: '> ❌ Le module radio est désactivé.'});
+    async execute(interaction) {
         await interaction.deferReply();
         // search title artist and cover of the song
 
@@ -22,14 +21,39 @@ module.exports = {
         const botname = interaction.client.user.username;
 
         const connection = getVoiceConnection(interaction.guild.id);
-        if(!connection){
-            await interaction.editReply('> Je ne suis pas dans un salon vocal');
-        } else {
-            // show in a embed message that the bot is playing
-            var radio = await interaction.client.serversdb.findOne({ id: interaction.guild.id }).select('radio'); // get the radio from the database
-            radio = radio?.radio;
-            
-            if(radio?.url) {
+        if (!connection) {
+            await interaction.editReply('> ❌ Je ne suis pas dans un salon vocal');
+            return;
+        }
+
+        var voiceconfig = await interaction.client.serversdb.findOne({ id: interaction.guild.id }).select('voiceconfig radio music');
+
+        let type = voiceconfig?.voiceconfig?.type || 'none';
+
+        if (type === 'music') {
+            if (!interaction.client.config.modules['music'].enabled) return interaction.editReply({ content: '> ❌ Le module musique est désactivé.' });
+
+            let currentMusic = voiceconfig.music;
+            if (!currentMusic || !currentMusic.url) return interaction.editReply({ content: '> ❌ Aucune musique en cours.' });
+
+            const embed = new EmbedBuilder()
+                .setAuthor({ name: botname, iconURL: avatar })
+                .setTitle('🎶 ' + currentMusic.title)
+                .setURL(currentMusic.url)
+                .setDescription(`Demandé par **${currentMusic.requester}**`)
+                .setTimestamp()
+                .setColor(interaction.client.modules.randomcolor.getRandomColor())
+                .setFooter({ text: botname, iconURL: avatar });
+
+            if (currentMusic.thumbnail) embed.setThumbnail(currentMusic.thumbnail);
+
+            await interaction.editReply({ embeds: [embed] });
+
+        } else if (type === 'radio') {
+            if (!interaction.client.config.modules['radio'].enabled) return interaction.reply({ content: '> ❌ Le module radio est désactivé.' });
+
+            var radio = voiceconfig?.radio;
+            if (radio?.url) {
                 const embed = new EmbedBuilder()
                     .setAuthor({ name: botname, iconURL: avatar })
                     .setTitle('📻 ' + radio.name)
@@ -45,118 +69,45 @@ module.exports = {
                     .setTimestamp()
                     .setColor(interaction.client.modules.randomcolor.getRandomColor())
                     .setFooter({ text: botname, iconURL: avatar });
-                // show in a embed message that the bot is playing
-                await interaction.editReply({ embeds: [embed] });
-                try{
-                    // get the stream metadata with the stream url
-                    console.log('[INFO] Searching for metadata on the radio ' + radio.name)
-                    internetradio.getStationInfo(radio.url, async function(err, stationInfo) {
-                        if(err) {
-                            console.log('[ERROR] Impossible to get the title and the artist of the song on the radio ' + radio.name)
-                            console.log(err)
-                            console.log('--------------------------------')
-                        } else {
-                            console.log(stationInfo);
-                            var radio1 = {};
-                            // get the title and separate the title and the artist
-                            if(stationInfo?.title) {
-                                if(stationInfo?.title?.includes(' - ')) {
-                                    radio1.title = stationInfo?.title.split(' - ')[1];
-                                    radio1.artist = stationInfo?.title.split(' - ')[0];
-                                } else {
-                                    radio1.title = stationInfo?.title;
-                                    radio1.artist = 'Inconnu';
-                                }
-                            }
-                            let updated = false;
-                            if((!radio1?.title || radio1?.title?.length == 0) && (!radio1?.artist || radio1?.artist?.length == 0)){
-                                console.log('[INFO] Impossible to get the title and the artist of the song on the radio ' + radio.name)
-                            } else {
-                                if(!radio1?.title || radio1?.title?.length == 0) radio1.title = 'Inconnu';
-                                if(!radio1?.artist || radio1?.artist?.length == 0) radio1.artist = 'Inconnu';
 
-                                console.log(`[INFO] Now playing on ${radio.name} : ${radio1.title} by ${radio1.artist}`);
-                                // Modify the embed message to show the title and the artist
-                                embed
-                                    .addFields(
-                                        { name: '🎵 Titre', value: radio1.title, inline: true },
-                                        { name: '😀 Artiste', value: radio1.artist, inline: true },
-                                    );
-                                updated = true;
-                            }
-                            if(updated) await interaction.editReply({ embeds: [embed] });
-                            if(radio1?.title != "Inconnu" && radio1?.artist != "Inconnu"){
-                                // search the cover of the song
-                                // `https://musicbrainz.org/ws/2/recording/?query=recording:"${radio1.title}"%20AND%20artist:"${radio1.artist}"%20AND%20status:official&fmt=json&limit=1`
-                                // with headers : { 'User-Agent': 'OmegaBot/5.0' }
-                                let ids = [];
-                                try{
-                                    console.log('[INFO] Searching for the cover of the song on the radio ' + radio.name)
-                                    const response = await fetch(`https://musicbrainz.org/ws/2/recording/?query=recording:"${radio1.title}"%20AND%20artist:"${radio1.artist}"%20AND%20status:official&fmt=json`, { headers: { 'User-Agent': 'OmegaBot/5.0' } });
-                                    const data = await response.json();
-                                    if(data?.recordings?.length > 0){
-                                        for(const recording of data?.recordings){
-                                            if(recording?.releases?.length > 0){
-                                                for(const release of recording.releases){
-                                                    if(release?.title == recording.title){
-                                                        ids.push(release.id);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } catch (error){
-                                    console.log('[ERROR] Impossible to get the cover of the song on the radio ' + radio.name)
-                                    console.log(error)
-                                    console.log('--------------------------------')
-                                }
-                                if(ids.length > 0) console.log('[INFO] Found ' + ids.length + ' id(s) to get the cover of the song on the radio ' + radio.name)
-                                else console.log('[INFO] No id found to get the cover of the song on the radio ' + radio.name);
-                                let cover = false;
-                                if(ids.length > 0){
-                                    for(const id of ids){
-                                        try{
-                                            console.log('[INFO] Searching for the cover of the song on the radio ' + radio.name)
-                                            // https://coverartarchive.org/release/${id}
-                                            const response = await fetch(`https://coverartarchive.org/release/${id}`);
-                                            const data = await response.json();
-                                            if(data?.images?.length > 0){
-                                                const image = data.images[0];
-                                                if(image?.thumbnails?.large){
-                                                    cover = image.thumbnails.large;
-                                                } else if(image?.thumbnails?.small){
-                                                    cover = image.thumbnails.small;
-                                                }
-                                            }
-                                        } catch (error){
-                                            console.log('[ERROR] Impossible to get the cover of the song on the radio ' + radio.name)
-                                            console.log(error)
-                                            console.log('--------------------------------')
-                                        }
-                                        if(cover) break;
-                                    }
-                                }
-                                if(cover){
-                                    console.log('[INFO] Cover of the song found on the radio ' + radio.name);
-                                    embed
-                                    .setThumbnail(cover)
-                                    .setAuthor({ name: botname, iconURL: radio.logo })
-                                    await interaction.editReply({ embeds: [embed] });
-                                }
-                                if(!cover){
-                                    console.log('[INFO] Impossible to get the cover of the song on the radio ' + radio.name)
-                                }
+                await interaction.editReply({ embeds: [embed] });
+
+                try {
+                    internetradio.getStationInfo(radio.url, async function (err, stationInfo) {
+                        if (err) return;
+                        var radio1 = {};
+                        if (stationInfo?.title) {
+                            if (stationInfo?.title?.includes(' - ')) {
+                                radio1.title = stationInfo?.title.split(' - ')[1];
+                                radio1.artist = stationInfo?.title.split(' - ')[0];
+                            } else {
+                                radio1.title = stationInfo?.title;
+                                radio1.artist = 'Inconnu';
                             }
                         }
+
+                        let updated = false;
+                        if ((!radio1?.title || radio1?.title?.length == 0) && (!radio1?.artist || radio1?.artist?.length == 0)) {
+                            // ignored
+                        } else {
+                            if (!radio1?.title || radio1?.title?.length == 0) radio1.title = 'Inconnu';
+                            if (!radio1?.artist || radio1?.artist?.length == 0) radio1.artist = 'Inconnu';
+
+                            embed.addFields(
+                                { name: '🎵 Titre', value: radio1.title, inline: true },
+                                { name: '😀 Artiste', value: radio1.artist, inline: true },
+                            );
+                            updated = true;
+                        }
+
+                        if (updated) await interaction.editReply({ embeds: [embed] });
                     });
-                } catch (error){
-                    console.log('[INFO] Impossible to get the title and the artist of the song on the radio ' + radio.name)
-                    console.log(error)
-                    console.log('--------------------------------')
-                }
+                } catch (e) { console.log(e); }
             } else {
                 await interaction.editReply("> ❌ Aucune radio n'est en cours de lecture.");
             }
+        } else {
+            await interaction.editReply("> ❌ Rien n'est en cours de lecture.");
         }
     }
 };

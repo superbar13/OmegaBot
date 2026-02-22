@@ -6,29 +6,29 @@ const { VoiceConnectionStatus, getVoiceConnection, demuxProbe, joinVoiceChannel,
 const fetch = require('node-fetch');
 var internetradio = require('node-internet-radio');
 const { countryCodeEmoji, emojiCountryCode } = require('country-code-emoji');
-const {PermissionsBitField} = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
         .setDescription('Joue la radio de votre choix')
         // add options radio required for the command
-        .addSubcommand(subcommand => 
+        .addSubcommand(subcommand =>
             subcommand.setName('radio')
-            .setDescription('Joue la radio de votre choix')
-            .addStringOption(option => option.setName('radio').setDescription('Nom de la radio').setRequired(true))
+                .setDescription('Joue la radio de votre choix')
+                .addStringOption(option => option.setName('radio').setDescription('Nom de la radio').setRequired(true))
         )
         .addSubcommand(subcommand =>
             subcommand.setName('music')
-            .setDescription('Joue la musique de votre choix')
-            .addStringOption(option => option.setName('music').setDescription('Nom de la musique').setRequired(true))
+                .setDescription('Joue la musique de votre choix')
+                .addStringOption(option => option.setName('music').setDescription('Nom de la musique').setRequired(true))
         )
         .setDMPermission(false),
     category: 'music',
-    async execute(interaction){
+    async execute(interaction) {
         // check if subcommand is radio
-        if(interaction.options.getSubcommand() == 'radio'){
-            if(!interaction.client.config.modules['radio'].enabled) return interaction.reply({ content: '> ❌ Le module radio est désactivé.'});
+        if (interaction.options.getSubcommand() == 'radio') {
+            if (!interaction.client.config.modules['radio'].enabled) return interaction.reply({ content: '> ❌ Le module radio est désactivé.' });
             await interaction.deferReply();
             // check in the db if only admin can use the command
             var voiceconfig = await interaction.client.serversdb.findOne({ id: interaction.guild.id }).select('voiceconfig'); // get the voiceconfig from the database
@@ -37,28 +37,28 @@ module.exports = {
                 interaction.editReply({ content: '> ❌ Seul un administrateur peut utiliser cette commande.', ephemeral: true });
                 return;
             }
-            if(!interaction?.member?.voice?.channel?.id){
+            if (!interaction?.member?.voice?.channel?.id) {
                 await interaction.editReply('> ❌ Vous devez être dans un salon vocal');
                 return;
             }
             const connection = getVoiceConnection(interaction.guild.id);
-            if(connection) {
+            if (connection) {
                 // verifie que le bot est dans le meme salon vocal que l'utilisateur
-                if(connection.joinConfig.channelId != interaction.member.voice.channel.id){
-                    try{
+                if (connection.joinConfig.channelId != interaction.member.voice.channel.id) {
+                    try {
                         const connection = getVoiceConnection(interaction.guild.id);
-                        if(!connection){
+                        if (!connection) {
                             await interaction.editReply('> ❌ Je ne suis pas dans un salon vocal');
                             // get the player from the players map
                             const player = interaction.client.players.get(interaction.guild.id);
                             const response = interaction.client.responses.get(interaction.guild.id);
                             // stop the player
-                            if(player){
+                            if (player) {
                                 player.removeAllListeners();
                                 player.stop();
                                 client.players.delete(interaction.guild.id);
                             }
-                            if(response){
+                            if (response) {
                                 response.abort();
                                 interaction.client.responses.delete(interaction.guild.id);
                             }
@@ -70,23 +70,24 @@ module.exports = {
                             const player = interaction.client.players.get(interaction.guild.id);
                             const response = interaction.client.responses.get(interaction.guild.id);
                             // stop the player
-                            if(player){$
+                            if (player) {
+                                $
                                 player.removeAllListeners();
                                 player.stop();
                                 interaction.client.players.delete(interaction.guild.id);
                             }
-                            if(response){
+                            if (response) {
                                 response.abort();
                                 interaction.client.responses.delete(interaction.guild.id);
                             }
                         }
-                    } catch (error){
+                    } catch (error) {
                         await interaction.editReply('> ❌ Une erreur est survenue');
                         console.log(error);
                     }
                 }
             }
-            try{
+            try {
                 const avatar = interaction.client.user.displayAvatarURL();
                 const botname = interaction.client.user.username;
 
@@ -97,7 +98,7 @@ module.exports = {
 
                 let radio = {};
                 // check if the argument is a url
-                if(radio123.includes('http')) {
+                if (radio123.includes('http')) {
                     radio.url = radio123;
                     radio.name = 'Radio personnalisée';
                     radio.id = 'custom';
@@ -109,7 +110,7 @@ module.exports = {
                     radio.state = 'Perpète-les-Olivettes';
                     radio.language = 'Terrien';
                     radio.votes = '123456789';
-                    try{
+                    try {
                         await interaction.client.serversdb.bulkWrite([
                             interaction.client.bulkutility.setField({
                                 'id': interaction.guild.id
@@ -119,7 +120,7 @@ module.exports = {
                                 'voiceconfig.guildId': interaction.guild.id
                             })
                         ])
-                    }catch(err){
+                    } catch (err) {
                         console.log(err);
                     }
                 } else {
@@ -141,32 +142,32 @@ module.exports = {
 
                     // get the first result ex : x.pageProps.data.stations.playables[0].id (id of the radio)
                     // check if there are results
-                    if(result.length > 0){
+                    if (result.length > 0) {
                         // list of radios to choose from discord list interaction
                         let radios = [];
                         // loop through the results to get the radios name and id
                         result.forEach(radio => {
-                            if(radios.length < 25){
+                            if (radios.length < 25) {
                                 // get flag of the country
                                 let description = `Langue : ${radio?.language} | Votes : ${radio?.votes} | Genres : ${radio?.tags}`;
                                 // if description is too long (max 100 characters)
-                                if(description.length > 90){
+                                if (description.length > 90) {
                                     description = description.substring(0, 90) + '...';
                                 }
                                 let label = radio.name + ' -> ' + radio?.country + ` (${radio?.state})`;
                                 // if label is too long (max 100 characters)
-                                if(label.length > 90){
+                                if (label.length > 90) {
                                     label = label.substring(0, 90) + '...';
                                 }
                                 // flag unicode with country code
                                 let flag;
-                                try{
+                                try {
                                     flag = countryCodeEmoji(radio?.countrycode);
                                 } catch (e) {
                                     flag = '🌐';
                                 }
                                 // if flag is not found
-                                if(!flag || flag.length == 0) flag = '🌐';
+                                if (!flag || flag.length == 0) flag = '🌐';
 
                                 radios.push({
                                     label: label,
@@ -183,11 +184,11 @@ module.exports = {
                         compoment = new StringSelectMenuBuilder()
                             .setCustomId('select')
                             .setPlaceholder('Clique ici pour choisir !');
-                        
-                        for(let i = 0; i < radios.length; i++){
-                            try{
+
+                        for (let i = 0; i < radios.length; i++) {
+                            try {
                                 compoment.addOptions(radios[i]);
-                            } catch(e){
+                            } catch (e) {
                                 console.log(e);
                                 let corrected = radio[i].emoji = {
                                     name: '🌐',
@@ -195,7 +196,7 @@ module.exports = {
                                 compoment.addOptions(corrected);
                             }
                         }
-                        
+
                         const row = new ActionRowBuilder()
                             .addComponents(
                                 compoment
@@ -221,16 +222,16 @@ module.exports = {
                         // if the user doesn't choose a radio in 15 seconds
                         collector.on('end', async collected => {
                             // if the user didn't choose a radio
-                            if(!radio.id){
+                            if (!radio.id) {
                                 // send a message to the user
                                 await interaction.editReply({ content: '> ❌ Vous n\'avez pas choisi de radio', components: [] });
                                 return;
                             }
                             collectorfinished = true;
                         });
-                        
+
                         // wait until the user choose a radio
-                        while(!collectorfinished){
+                        while (!collectorfinished) {
                             await new Promise(resolve => setTimeout(resolve, 100));
                         }
                         // filter the radio infos to get the selected radio infos (collector result)
@@ -249,18 +250,18 @@ module.exports = {
                         radio.name = radio200.name;
                         radio.id = radio200.stationuuid;
                         // test radio.logo
-                        if(radio200.favicon)radio.logo = radio200.favicon;
+                        if (radio200.favicon) radio.logo = radio200.favicon;
                         else radio.logo = avatar;
                         // get radio genres and parse it to a string
                         genres = radio200.tags
-                        if(genres && genres.length > 0) radio.genres = genres.split(',').join(', ').toTitleCase();
+                        if (genres && genres.length > 0) radio.genres = genres.split(',').join(', ').toTitleCase();
                         else radio.genres = 'Aucun genre';
 
                         let result2 = resultcollector;
-                        if(result2) {
+                        if (result2) {
                             // get the stream url ex : x.pageProps.data.broadcast.streams[0].url
                             radio.url = result2.url_resolved
-                            if(radio.website) {
+                            if (radio.website) {
                                 radio.website = result2.homepage
                             } else {
                                 radio.website = radio.url;
@@ -270,7 +271,7 @@ module.exports = {
                             radio.language = result2.language.toTitleCase();
                             radio.votes = result2.votes;
                             // save the radio in the database
-                            try{
+                            try {
                                 await interaction.client.serversdb.bulkWrite([
                                     interaction.client.bulkutility.setField({
                                         'id': interaction.guild.id
@@ -280,7 +281,7 @@ module.exports = {
                                         'voiceconfig.guildId': interaction.guild.id,
                                     })
                                 ])
-                            }catch(err){console.log(err);}
+                            } catch (err) { console.log(err); }
                         } else {
                             // if the radio doesn't have a stream url
                             await interaction.editReply({ content: '> ❌ La radio ' + radio.name + ' n\'a pas de flux audio ?!', components: [] });
@@ -296,7 +297,7 @@ module.exports = {
 
                 //////////////////////////////// PLAY THE RADIO ////////////////////////////////
                 let playing = interaction.client.modules.radio.radioLoad(interaction.guild, info);
-                if(!playing && interaction) await interaction.editReply('> ❌ Une erreur est survenue lors de la lecture de la radio ' + radio.name);
+                if (!playing && interaction) await interaction.editReply('> ❌ Une erreur est survenue lors de la lecture de la radio ' + radio.name);
                 ///////////////////////////////////////////////////////////////////////////////////
 
                 let embed = new EmbedBuilder()
@@ -316,11 +317,11 @@ module.exports = {
                     .setFooter({ text: botname, iconURL: avatar });
                 // show in a embed message that the bot is playing
                 await interaction.editReply({ embeds: [embed] });
-                try{
+                try {
                     // get the stream metadata with the stream url
                     console.log('[INFO] Searching for metadata on the radio ' + radio.name)
-                    internetradio.getStationInfo(radio.url, async function(err, stationInfo) {
-                        if(err) {
+                    internetradio.getStationInfo(radio.url, async function (err, stationInfo) {
+                        if (err) {
                             console.log('[ERROR] Impossible to get the title and the artist of the song on the radio ' + radio.name)
                             console.log(err)
                             console.log('--------------------------------')
@@ -328,8 +329,8 @@ module.exports = {
                             console.log(stationInfo);
                             var radio1 = {};
                             // get the title and separate the title and the artist
-                            if(stationInfo?.title) {
-                                if(stationInfo?.title?.includes(' - ')) {
+                            if (stationInfo?.title) {
+                                if (stationInfo?.title?.includes(' - ')) {
                                     radio1.title = stationInfo?.title.split(' - ')[1];
                                     radio1.artist = stationInfo?.title.split(' - ')[0];
                                 } else {
@@ -338,15 +339,15 @@ module.exports = {
                                 }
                             }
                             let updated = false;
-                            if(stationInfo?.headers) {
-                                if(radio.name == "Radio personnalisée") {
+                            if (stationInfo?.headers) {
+                                if (radio.name == "Radio personnalisée") {
                                     console.log('[INFO] Searching for the radio name and the genres in the headers')
-                                    if(stationInfo.headers['icy-name']) {
+                                    if (stationInfo.headers['icy-name']) {
                                         radio.name = stationInfo.headers['icy-name'];
                                         console.log(`[INFO] Found the radio name : ${radio.name}`)
                                         embed.setTitle('📻 ' + radio.name);
                                         updated = true;
-                                        try{
+                                        try {
                                             await interaction.client.serversdb.bulkWrite([
                                                 interaction.client.bulkutility.setField({
                                                     'id': interaction.guild.id
@@ -354,18 +355,18 @@ module.exports = {
                                                     'radio.name': radio.name
                                                 })
                                             ])
-                                        }catch(err){
+                                        } catch (err) {
                                             console.log(err);
                                         }
                                     }
                                 }
-                                if(radio?.genres?.length == 0 || !radio?.genres || radio?.genres == 'Aucun genre') {
-                                    if(stationInfo.headers['icy-genre']) {
+                                if (radio?.genres?.length == 0 || !radio?.genres || radio?.genres == 'Aucun genre') {
+                                    if (stationInfo.headers['icy-genre']) {
                                         radio.genres = stationInfo.headers['icy-genre'];
                                         console.log(`[INFO] Found the radio genres : ${radio.genres}`)
                                         embed.data.fields[3].value = radio.genres;
                                         updated = true;
-                                        try{
+                                        try {
                                             await interaction.client.serversdb.bulkWrite([
                                                 interaction.client.bulkutility.setField({
                                                     'id': interaction.guild.id
@@ -373,17 +374,17 @@ module.exports = {
                                                     'radio.genres': radio.genres
                                                 })
                                             ])
-                                        }catch(err){
+                                        } catch (err) {
                                             console.log(err);
                                         }
                                     }
                                 }
-                                if(stationInfo.headers['icy-description']) {
+                                if (stationInfo.headers['icy-description']) {
                                     radio.description = stationInfo.headers['icy-description'];
                                     console.log(`[INFO] Found the radio description : ${radio.description}`)
                                     embed.setDescription(`Radio Lancée !\n[[🎵 Flux](${radio.url})] | [[📻 Site web](${radio.website})]${radio?.description ? ' | ' + radio.description : ''}`);
                                     updated = true;
-                                    try{
+                                    try {
                                         await interaction.client.serversdb.bulkWrite([
                                             interaction.client.bulkutility.setField({
                                                 'id': interaction.guild.id
@@ -391,18 +392,18 @@ module.exports = {
                                                 'radio.description': radio.description
                                             })
                                         ])
-                                    }catch(err){
+                                    } catch (err) {
                                         console.log(err);
                                     }
                                 }
-                                if(radio?.website == radio?.url) {
-                                    if(stationInfo.headers['icy-url']) {
+                                if (radio?.website == radio?.url) {
+                                    if (stationInfo.headers['icy-url']) {
                                         radio.website = stationInfo.headers['icy-url'];
-                                        if(!radio.website.startsWith('http') && !radio.website.startsWith('https')) radio.website = 'http://' + radio.website;
+                                        if (!radio.website.startsWith('http') && !radio.website.startsWith('https')) radio.website = 'http://' + radio.website;
                                         console.log(`[INFO] Found the radio website : ${radio.website}`)
                                         embed.setDescription(`Radio Lancée !\n[[🎵 Flux](${radio.url})] | [[📻 Site web](${radio.website})]${radio?.description ? ' | ' + radio.description : ''}`);
                                         updated = true;
-                                        try{
+                                        try {
                                             await interaction.client.serversdb.bulkWrite([
                                                 interaction.client.bulkutility.setField({
                                                     'id': interaction.guild.id
@@ -410,17 +411,17 @@ module.exports = {
                                                     'radio.website': radio.website
                                                 })
                                             ])
-                                        }catch(err){
+                                        } catch (err) {
                                             console.log(err);
                                         }
                                     }
                                 }
                             }
-                            if((!radio1?.title || radio1?.title?.length == 0) && (!radio1?.artist || radio1?.artist?.length == 0)) {
+                            if ((!radio1?.title || radio1?.title?.length == 0) && (!radio1?.artist || radio1?.artist?.length == 0)) {
                                 console.log('[INFO] Impossible to get the title and the artist of the song on the radio ' + radio.name)
                             } else {
-                                if(!radio1?.title || radio1?.title?.length == 0) radio1.title = 'Inconnu';
-                                if(!radio1?.artist || radio1?.artist?.length == 0) radio1.artist = 'Inconnu';
+                                if (!radio1?.title || radio1?.title?.length == 0) radio1.title = 'Inconnu';
+                                if (!radio1?.artist || radio1?.artist?.length == 0) radio1.artist = 'Inconnu';
 
                                 console.log(`[INFO] Now playing on ${radio.name} : ${radio1.title} by ${radio1.artist}`);
                                 // Modify the embed message to show the title and the artist
@@ -431,77 +432,77 @@ module.exports = {
                                     );
                                 updated = true;
                             }
-                            if(updated) await interaction.editReply({ embeds: [embed] });
-                            if(radio1?.title != "Inconnu" && radio1?.artist != "Inconnu"){
+                            if (updated) await interaction.editReply({ embeds: [embed] });
+                            if (radio1?.title != "Inconnu" && radio1?.artist != "Inconnu") {
                                 // search the cover of the song
                                 // `https://musicbrainz.org/ws/2/recording/?query=recording:"${radio1.title}"%20AND%20artist:"${radio1.artist}"%20AND%20status:official&fmt=json&limit=1`
                                 // with headers : { 'User-Agent': 'OmegaBot/5.0' }
                                 let ids = [];
-                                try{
+                                try {
                                     console.log('[INFO] Searching for the cover of the song on the radio ' + radio.name)
                                     const response = await fetch(`https://musicbrainz.org/ws/2/recording/?query=recording:"${radio1.title}"%20AND%20artist:"${radio1.artist}"%20AND%20status:official&fmt=json`, { headers: { 'User-Agent': 'OmegaBot/5.0' } });
                                     const data = await response.json();
-                                    if(data?.recordings?.length > 0){
-                                        for(const recording of data?.recordings){
-                                            if(recording?.releases?.length > 0){
-                                                for(const release of recording.releases){
-                                                    if(release?.title == recording.title) ids.push(release.id);
+                                    if (data?.recordings?.length > 0) {
+                                        for (const recording of data?.recordings) {
+                                            if (recording?.releases?.length > 0) {
+                                                for (const release of recording.releases) {
+                                                    if (release?.title == recording.title) ids.push(release.id);
                                                 }
                                             }
                                         }
                                     }
-                                } catch (error){
+                                } catch (error) {
                                     console.log('[ERROR] Impossible to get the cover of the song on the radio ' + radio.name)
                                     console.log(error)
                                     console.log('--------------------------------')
                                 }
-                                if(ids.length > 0) console.log('[INFO] Found ' + ids.length + ' id(s) to get the cover of the song on the radio ' + radio.name)
+                                if (ids.length > 0) console.log('[INFO] Found ' + ids.length + ' id(s) to get the cover of the song on the radio ' + radio.name)
                                 else console.log('[INFO] No id found to get the cover of the song on the radio ' + radio.name);
                                 let cover = false;
-                                if(ids.length > 0){
-                                    for(const id of ids){
-                                        try{
+                                if (ids.length > 0) {
+                                    for (const id of ids) {
+                                        try {
                                             console.log('[INFO] Searching for the cover of the song on the radio ' + radio.name)
                                             // https://coverartarchive.org/release/${id}
                                             const response = await fetch(`https://coverartarchive.org/release/${id}`);
                                             const data = await response.json();
-                                            if(data?.images?.length > 0){
+                                            if (data?.images?.length > 0) {
                                                 const image = data.images[0];
-                                                if(image?.thumbnails?.large) cover = image.thumbnails.large;
-                                                else if(image?.thumbnails?.small) cover = image.thumbnails.small;
+                                                if (image?.thumbnails?.large) cover = image.thumbnails.large;
+                                                else if (image?.thumbnails?.small) cover = image.thumbnails.small;
                                             }
-                                        } catch (error){
+                                        } catch (error) {
                                             console.log('[ERROR] Impossible to get the cover of the song on the radio ' + radio.name)
                                             console.log(error)
                                             console.log('--------------------------------')
                                         }
-                                        if(cover) break;
+                                        if (cover) break;
                                     }
                                 }
-                                if(cover){
+                                if (cover) {
                                     console.log('[INFO] Cover of the song found on the radio ' + radio.name);
                                     embed
-                                    .setThumbnail(cover)
-                                    .setAuthor({ name: botname, iconURL: radio.logo })
+                                        .setThumbnail(cover)
+                                        .setAuthor({ name: botname, iconURL: radio.logo })
                                     await interaction.editReply({ embeds: [embed] });
                                 }
-                                if(!cover){
+                                if (!cover) {
                                     console.log('[INFO] Impossible to get the cover of the song on the radio ' + radio.name)
                                 }
                             }
                         }
                     });
-                } catch (error){
+                } catch (error) {
                     console.log('[INFO] Impossible to get the title and the artist of the song on the radio ' + radio.name)
                     console.log(error)
                     console.log('--------------------------------')
                 }
-            } catch (error){
+            } catch (error) {
                 //stream.destroy();
                 console.log('Audio player is stopped');
                 await interaction.editReply('> ❌ Une erreur est survenue, veuillez réessayer');
                 console.log(error);
-                try{
+                try {
                     await interaction.client.serversdb.bulkWrite([
                         interaction.client.bulkutility.setField({
                             'id': interaction.guild.id
@@ -510,12 +511,73 @@ module.exports = {
                             'voiceconfig.type': 'none'
                         })
                     ])
-                } catch(err) {console.log(err);}
+                } catch (err) { console.log(err); }
             }
-        } else if(interaction.options.getSubcommand() == 'music') {
-            if(!interaction.client.config.modules['music'].enabled) return interaction.reply({ content: '> ❌ Le module musique est désactivé.'});
+        } else if (interaction.options.getSubcommand() == 'music') {
+            if (!interaction.client.config.modules['music'].enabled) return interaction.reply({ content: '> ❌ Le module musique est désactivé.' });
             await interaction.deferReply();
-            interaction.editReply({ content: '> ❌ Le module musique n\'est pas encore disponible', ephemeral: true });
+
+            if (!interaction?.member?.voice?.channel?.id) {
+                return await interaction.editReply('> ❌ Vous devez être dans un salon vocal');
+            }
+
+            // Get bot's current connection to ensure we're in the same channel if already playing
+            const connection = getVoiceConnection(interaction.guild.id);
+            if (connection && connection.joinConfig.channelId != interaction.member.voice.channel.id) {
+                return await interaction.editReply('> ❌ Je suis déjà dans un autre salon vocal');
+            }
+
+            const ytdl = require('yt-dlp-exec');
+            let query = interaction.options.getString('music');
+
+            // If it's not a URL, search youtube
+            if (!query.startsWith('http')) {
+                query = `ytsearch1:${query}`;
+            }
+
+            let metadata;
+            try {
+                metadata = await ytdl(query, { dumpJson: true, noWarnings: true, defaultSearch: 'ytsearch' });
+            } catch (e) {
+                console.log(e);
+                return await interaction.editReply('> ❌ Impossible de trouver cette musique.');
+            }
+
+            // Extract the first entry if it's a playlist/search result
+            if (metadata.entries && metadata.entries.length > 0) metadata = metadata.entries[0];
+            else if (metadata.entries) return await interaction.editReply('> ❌ Aucun résultat trouvé.');
+
+            let musicTrack = {
+                title: metadata.title || 'Titre inconnu',
+                url: metadata.webpage_url || metadata.original_url || query,
+                thumbnail: metadata.thumbnail || '',
+                duration: metadata.duration || 0,
+                requester: interaction.user.tag,
+            };
+
+            // Add to database
+            let voiceconfig = await interaction.client.serversdb.findOne({ id: interaction.guild.id }).select('voiceconfig queue music');
+            let queue = voiceconfig?.queue || [];
+
+            queue.push(musicTrack);
+
+            await interaction.client.serversdb.bulkWrite([
+                interaction.client.bulkutility.setField({ 'id': interaction.guild.id }, {
+                    'queue': queue,
+                    'voiceconfig.channelId': interaction.member.voice.channel.id,
+                    'voiceconfig.guildId': interaction.guild.id,
+                })
+            ]);
+
+            // Check if something is playing
+            let currentlyPlaying = voiceconfig?.music?.url || null;
+
+            if (!currentlyPlaying && queue.length === 1) { // It means we just added the first item and nothing is playing
+                await interaction.editReply(`> ✅ **${musicTrack.title}** ajouté à la file d'attente et lancement de la musique !`);
+                interaction.client.modules.music.musicLoad(interaction.guild, {});
+            } else {
+                await interaction.editReply(`> ✅ **${musicTrack.title}** ajouté à la file d'attente (Position: ${queue.length})`);
+            }
         }
     }
 };
