@@ -58,7 +58,7 @@ MapSchema.statics.SaveMap = async function (object) {
     await Promise.all(object.chunks.map(async (chunk) => {
         // find the chunk with position x and y
         let dbChunk = chunks.find(c => c.position.x == chunk.position.x && c.position.z == chunk.position.z);
-        if(!dbChunk) {
+        if (!dbChunk) {
             // if it doesn't exist, create it
             let newChunk = new Map({
                 pixels: chunk.pixels,
@@ -70,7 +70,7 @@ MapSchema.statics.SaveMap = async function (object) {
             await newChunk.save();
         } else {
             // if it does exist, update it only if different
-            if(JSON.stringify(dbChunk.pixels) != JSON.stringify(chunk.pixels)) {
+            if (JSON.stringify(dbChunk.pixels) != JSON.stringify(chunk.pixels)) {
                 Map.updateOne({ position: { x: chunk.position.x, z: chunk.position.z } }, { pixels: chunk.pixels });
             }
         }
@@ -105,7 +105,7 @@ MapSchema.statics.GetMap = async function () {
         i++;
     }));
     process.stdout.write("\nMap fetched (for getting).");
-    
+
     // create a new object
     let object = {
         chunks: chunks
@@ -119,9 +119,9 @@ MapSchema.statics.GetMap = async function () {
 }
 
 MapSchema.statics.ping = async function () {
-	let time = Date.now();
-	await Interserver.findOne({ id: "1" });
-	return Date.now() - time;
+    let time = Date.now();
+    await Map.findOne();
+    return Date.now() - time;
 }
 
 const Map = mongoose.model('map', MapSchema);

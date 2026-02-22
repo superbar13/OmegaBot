@@ -251,7 +251,7 @@ module.exports = {
             }
         }
     },
-    run: async(client) => {
+    run: async (client) => {
         const createbar = client.modules.createBar.createBar;
 
         // this is the function that will be executed when the module is loaded
@@ -259,7 +259,7 @@ module.exports = {
 
         const { EmbedBuilder } = require('discord.js');
 
-        async function updatelb(){
+        async function updatelb() {
             let base = client.config.modules['levels'].addedconfig.base;
             let xpPerMessage = client.config.modules['levels'].addedconfig.xpPerMessage;
             let goalMultiplier = client.config.modules['levels'].addedconfig.goalMultiplier;
@@ -279,15 +279,16 @@ module.exports = {
                 .setFooter({ text: client.user.username + " - Globals Levels", iconURL: "https://cdn.discordapp.com/attachments/909475569459163186/1086297346796687401/squarecolorgif.gif" });
             // loop in the top 25 users
             index = 0;
-            for(const user of top25) {
+            for (const user of top25) {
                 index++;
                 let xpToNextLevel = Math.floor(goalMultiplier * Math.pow(base, user.levels.level));
                 let xp = user.levels.xp;
                 let level = user.levels.level;
                 let xpOnxpToNextLevel = `${xp} / ${xpToNextLevel} XP`
-                let xpBar = createbar({value: xp,max: xpToNextLevel});
+                let xpBar = createbar({ value: xp, max: xpToNextLevel });
 
-                let user1 = await client.users.fetch(user.id);
+                let user1 = await client.users.fetch(user.id).catch(() => null);
+                if (!user1) user1 = { tag: "Utilisateur inconnu" };
 
                 embed.addFields(
                     { name: `${index == 1 ? '🥇' : index == 2 ? '🥈' : index == 3 ? '🥉' : index + 1}. ${user1.tag} - Niveau ${level}`.toString(), value: `${xpBar} ${xpOnxpToNextLevel}`.toString(), inline: false }
@@ -297,42 +298,42 @@ module.exports = {
             // update the global leaderboard messages on the servers
             i = 0;
             i2 = 0;
-            for(let guild of client.guilds.cache){
+            for (let guild of client.guilds.cache) {
                 guild = guild[1];
                 // get the server info
                 var info = await client.serversdb.findOne({ id: guild.id }).select('globallevels levels');
                 // if the global leaderboard is disabled, return
-                if(info?.globallevels?.leaderboard) {
+                if (info?.globallevels?.leaderboard) {
                     // get the channel where the global leaderboard is
                     var channel = guild.channels.cache.get(info.globallevels.leaderboardChannel);
                     // if the channel is not found, return
-                    if(!channel) return;
+                    if (!channel) continue;
                     // get the global leaderboard message
-                    var message = await channel.messages.fetch(info.globallevels.leaderboardMessage);
+                    var message = await channel.messages.fetch(info.globallevels.leaderboardMessage).catch(() => null);
                     // if the message is not found, return
-                    if(!message) return;
+                    if (!message) continue;
                     // edit the message
                     try {
                         message.edit({ content: '', embeds: [embed] });
-                        console.log('[LEVELS] Global leaderboard updated on '+guild.name+' !');
+                        console.log('[LEVELS] Global leaderboard updated on ' + guild.name + ' !');
                         i++;
                     } catch (error) {
-                        console.log('[LEVELS] Error while updating the global leaderboard on '+guild.name+' !');
+                        console.log('[LEVELS] Error while updating the global leaderboard on ' + guild.name + ' !');
                     }
                 }
                 // update the server leaderboard messages on the servers
                 // check if the server leaderboard is enabled
-                if(info?.levels?.leaderboard) {
+                if (info?.levels?.leaderboard) {
                     // get the top 25 users on the server (server.users)
                     var servtop25 = info.users.sort((a, b) => (a.levels.xp < b.levels.xp) ? 1 : -1).sort((a, b) => (a.levels.level < b.levels.level) ? 1 : -1).slice(0, 25);
                     // get the channel where the server leaderboard is
                     var channel = guild.channels.cache.get(info.levels.leaderboardChannel);
                     // if the channel is not found, return
-                    if(!channel) return;
+                    if (!channel) continue;
                     // get the server leaderboard message
-                    var message = await channel.messages.fetch(info.levels.leaderboardMessage);
+                    var message = await channel.messages.fetch(info.levels.leaderboardMessage).catch(() => null);
                     // if the message is not found, return
-                    if(!message) return;
+                    if (!message) continue;
                     // create the embed
                     var embed2 = new EmbedBuilder()
                         .setColor('#0019ff')
@@ -342,15 +343,16 @@ module.exports = {
                         .setFooter({ text: client.user.username + ' - Server Levels of ' + guild.name, iconURL: guild.iconURL({ dynamic: true }) });
                     // loop in the top 25 users
                     index = 0;
-                    for(const user of servtop25) {
+                    for (const user of servtop25) {
                         index++;
                         let xpToNextLevel = Math.floor(goalMultiplier * Math.pow(base, user.levels.level));
                         let xp = user.levels.xp;
                         let level = user.levels.level;
                         let xpOnxpToNextLevel = `${xp} / ${xpToNextLevel} XP`
-                        let xpBar = createbar({value: xp,max: xpToNextLevel});
+                        let xpBar = createbar({ value: xp, max: xpToNextLevel });
 
-                        let user1 = await client.users.fetch(user.id);
+                        let user1 = await client.users.fetch(user.id).catch(() => null);
+                        if (!user1) user1 = { tag: "Utilisateur inconnu" };
 
                         embed2.addFields(
                             { name: `${index == 1 ? '🥇' : index == 2 ? '🥈' : index == 3 ? '🥉' : index + 1}. ${user1.tag} - Niveau ${level}`.toString(), value: `${xpBar} ${xpOnxpToNextLevel}`.toString(), inline: false }
@@ -359,10 +361,10 @@ module.exports = {
                     // edit the message
                     try {
                         message.edit({ content: '', embeds: [embed2] });
-                        console.log('[LEVELS] Server leaderboard updated on '+guild.name+' !');
+                        console.log('[LEVELS] Server leaderboard updated on ' + guild.name + ' !');
                         i2++;
                     } catch (error) {
-                        console.log('[LEVELS] Error while updating the server leaderboard on '+guild.name+' !');
+                        console.log('[LEVELS] Error while updating the server leaderboard on ' + guild.name + ' !');
                     }
                 }
             }
@@ -370,15 +372,15 @@ module.exports = {
             console.log(`[LEVELS] Server top 25 users updated on ${i2} servers !`);
         }
         await updatelb();
-        setInterval(async() => {
+        setInterval(async () => {
             // update the global and guild top 25 users
             await updatelb();
         }, 300000);
         // toutes les 5 minutes, update le leaderboard global et le leaderboard du serveur
 
         let cooldown = new Set();
-        if(!client.config.modules['levels'].enabled) return console.log('[LEVELS] Levels module disabled, skipping...'.brightBlue);
-        
+        if (!client.config.modules['levels'].enabled) return console.log('[LEVELS] Levels module disabled, skipping...'.brightBlue);
+
         let base = client.config.modules['levels'].addedconfig.base;
         let xpPerMessage = client.config.modules['levels'].addedconfig.xpPerMessage;
         let goalMultiplier = client.config.modules['levels'].addedconfig.goalMultiplier;
@@ -390,13 +392,13 @@ module.exports = {
             if (message.author.bot) return;
             // if the message is not in a guild, return
             if (!message.guild) return;
-            
+
             // there are 2 types of levels, guild and global
             // guild level is the level of the user in the guild
             // global level is the level of the user in all the guilds the bot is in
 
             // get the user and the server info from the database (usersdb and serversdb)
-            
+
             var user = await client.usersdb.findOne({ id: message.author.id });
             // if the user is not found, create a new user
             if (!user) user = await client.usersdb.createModel({ id: message.author.id });
@@ -435,14 +437,16 @@ module.exports = {
                         // check if there is a announceChannel (not "none" or null)
                         if (server.globallevels.announceChannel && server.globallevels.announceChannel !== 'none') {
                             // send the levelup message in the announceChannel (replace the arguments)
-                            client.channels.cache.get(server.globallevels.announceChannel).send(replaceArguments(server.globallevels.announceMessage));
+                            let channel = client.channels.cache.get(server.globallevels.announceChannel);
+                            if (channel) channel.send(replaceArguments(server.globallevels.announceMessage));
                         } else {
                             // send the levelup message in the channel where the message was sent
                             message.channel.send(replaceArguments(server.globallevels.announceMessage));
                         }
                     } else {
                         if (server.globallevels.announceChannel && server.globallevels.announceChannel !== 'none') {
-                            client.channels.cache.get(server.globallevels.announceChannel).send(`GG ${message.author.username} you leveled up to level ${user.levels.level} on the global leaderboard !`);
+                            let channel = client.channels.cache.get(server.globallevels.announceChannel);
+                            if (channel) channel.send(`GG ${message.author.username} you leveled up to level ${user.levels.level} on the global leaderboard !`);
                         } else {
                             message.channel.send(`GG ${message.author.username} you leveled up to level ${user.levels.level} on the global leaderboard !`);
                         }
@@ -451,7 +455,7 @@ module.exports = {
             }
 
             // save the user
-            try{
+            try {
                 await client.usersdb.bulkWrite([
                     client.bulkutility.setField({
                         'id': message.author.id
@@ -459,7 +463,7 @@ module.exports = {
                         'levels': user.levels
                     })
                 ])
-            }catch(err){console.log(err);}
+            } catch (err) { console.log(err); }
             // invalidate the user variable
             user = null;
 
@@ -480,7 +484,7 @@ module.exports = {
                 user.levels.level += 1;
                 // reset the xp to 0
                 user.levels.xp = 0;
-                if(server?.levels?.enabled){
+                if (server?.levels?.enabled) {
                     // check if there is a levelup message
                     if (server?.levels?.announce) {
                         // check if there is a announceMessage
@@ -488,14 +492,16 @@ module.exports = {
                             // check if there is a announceChannel (not "none" or null)
                             if (server.levels.announceChannel && server.levels.announceChannel !== 'none') {
                                 // send the levelup message in the announceChannel (replace the arguments)
-                                client.channels.cache.get(server.levels.announceChannel).send(replaceArguments(server.levels.announceMessage));
+                                let channel = client.channels.cache.get(server.levels.announceChannel);
+                                if (channel) channel.send(replaceArguments(server.levels.announceMessage));
                             } else {
                                 // send the levelup message in the channel where the message was sent
                                 message.channel.send(replaceArguments(server.levels.announceMessage));
                             }
                         } else {
                             if (server.levels.announceChannel && server.levels.announceChannel !== 'none') {
-                                client.channels.cache.get(server.levels.announceChannel).send(`GG ${message.author.username} you leveled up to level ${user.levels.level} on the guild leaderboard !`);
+                                let channel = client.channels.cache.get(server.levels.announceChannel);
+                                if (channel) channel.send(`GG ${message.author.username} you leveled up to level ${user.levels.level} on the guild leaderboard !`);
                             } else {
                                 message.channel.send(`GG ${message.author.username} you leveled up to level ${user.levels.level} on the guild leaderboard !`);
                             }
@@ -508,7 +514,7 @@ module.exports = {
             server.users[server.users.findIndex(user => user.id === message.author.id)] = user;
 
             // save the server in the database
-            try{
+            try {
                 await client.serversdb.bulkWrite([
                     client.bulkutility.setField({
                         'id': message.guild.id
@@ -516,7 +522,7 @@ module.exports = {
                         'users': server.users
                     })
                 ])
-            }catch(err){console.log(err);}
+            } catch (err) { console.log(err); }
         });
     }
 }

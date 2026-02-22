@@ -16,8 +16,8 @@ module.exports = {
             'Maintenant sur Telegram !',
         ],
     },
-    run: async(client) => {
-        if(client.config.modules['status'].addedconfig.enabled == true) {
+    run: async (client) => {
+        if (client.config.modules['status'].addedconfig.enabled == true) {
             // function sleep
             function sleep(ms) {
                 return new Promise((resolve) => {
@@ -25,16 +25,14 @@ module.exports = {
                 });
             }
 
-            // status that change every 10 seconds (and evaluate it)
-            let statuslist = (client.config.modules['status'].addedconfig.statuslist)
-                .map(status => eval('`'+status+'`'));
+            let statuslist = client.config.modules['status'].addedconfig.statuslist;
 
             for (let i = 0; i < statuslist.length;) {
                 // status watching
-                client.user.setActivity(statuslist[i], { type: client.config.modules['status'].addedconfig.type });
+                client.user.setActivity(eval('`' + statuslist[i] + '`'), { type: client.config.modules['status'].addedconfig.type });
                 // if final status, go back to first status
-                if (i+1 == statuslist.length) i = 0;
-                i++;
+                if (i + 1 == statuslist.length) i = 0;
+                else i++;
                 await sleep(client.config.modules['status'].addedconfig.delay);
             }
         }

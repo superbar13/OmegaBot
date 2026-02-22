@@ -13,7 +13,7 @@ module.exports = {
         ),
     category: 'fun',
     ratelimit: true,
-    async execute(interaction){
+    async execute(interaction) {
         await interaction.deferReply();
 
         // retrouve le texte du tweet
@@ -26,16 +26,16 @@ module.exports = {
 
         // envoie le tweet dans un embed
         const embed = new EmbedBuilder()
-        .setTitle('🐦 Tweet de Trump 🐦')
-        .setDescription(`**Texte:** ${text}`)
-        .setColor(interaction.client.modules.randomcolor.getRandomColor())
-        .setTimestamp()
-        .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() })
-        .setImage(image);
-        try{
+            .setTitle('🐦 Tweet de Trump 🐦')
+            .setDescription(`**Texte:** ${text}`)
+            .setColor(interaction.client.modules.randomcolor.getRandomColor())
+            .setTimestamp()
+            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() })
+            .setImage(image);
+        try {
             await interaction.editReply({ embeds: [embed] });
-        } catch(err){
-            await interaction.reply('> ❌ Une erreur est survenue');
+        } catch (err) {
+            await interaction.editReply('> ❌ Une erreur est survenue');
             console.log(err);
         }
     }

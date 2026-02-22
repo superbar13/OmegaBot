@@ -23,7 +23,7 @@ module.exports = {
         ),
     category: 'basic',
     ratelimit: true,
-    async execute(interaction){
+    async execute(interaction) {
         await interaction.deferReply();
 
         // retrouve le texte
@@ -35,21 +35,21 @@ module.exports = {
 
         // traduit le texte
         let translated;
-        if(!from) translated = await translate(text, { to: lang });
+        if (!from) translated = await translate(text, { to: lang });
         else translated = await translate(text, { from: from, to: lang });
-        if(!translated || !translated?.text) return await interaction.editReply('> ❌ Une erreur est survenue, vérifiez que la langue est correcte (ex: fr, en, es, ...)');
+        if (!translated || !translated?.text) return await interaction.editReply('> ❌ Une erreur est survenue, vérifiez que la langue est correcte (ex: fr, en, es, ...)');
         translated = translated.text;
         // envoie le résultat
         const embed = new EmbedBuilder()
-        .setTitle('Traduction')
-        .setDescription(`**Texte:** ${text}\n**Traduction:** ${translated}`)
-        .setColor(interaction.client.modules.randomcolor.getRandomColor())
-        .setTimestamp()
-        .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
-        try{
+            .setTitle('Traduction')
+            .setDescription(`**Texte:** ${text}\n**Traduction:** ${translated}`)
+            .setColor(interaction.client.modules.randomcolor.getRandomColor())
+            .setTimestamp()
+            .setFooter({ text: interaction.client.user.username, iconURL: interaction.client.user.displayAvatarURL() });
+        try {
             await interaction.editReply({ embeds: [embed] });
-        } catch(err){
-            await interaction.reply('> ❌ Une erreur est survenue');
+        } catch (err) {
+            await interaction.editReply('> ❌ Une erreur est survenue');
             console.log(err);
         }
     }

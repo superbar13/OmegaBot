@@ -39,8 +39,8 @@ const MapPointSchema = new Schema({
 MapPointSchema.index({ x: 1, z: 1 }, { unique: true });
 
 MapPointSchema.statics.createModel = async function (object) {
-	const mapPoint = new MapPoint({
-		x: object.x,
+    const mapPoint = new MapPoint({
+        x: object.x,
         z: object.z,
         type: object.type,
         name: object.name,
@@ -49,15 +49,15 @@ MapPointSchema.statics.createModel = async function (object) {
         height: object.height,
         color: object.color ? object.color : undefined,
         icon: object.icon ? object.icon : undefined,
-	});
-	return await mapPoint.save();
+    });
+    return await mapPoint.save();
 }
 
 MapPointSchema.statics.AddPointToMap = async function (object) {
     // check a point already exists at this position
     let point = await MapPoint.findPoint(object.x, object.z); // find the point
     // if point update it to replace it
-    if(point) {
+    if (point) {
         await MapPoint.updateOne({ _id: point._id }, object); // update the point
         return true;
     } else {
@@ -71,13 +71,13 @@ MapPointSchema.statics.FindPoint = async function (x, z) {
     // the point position is an zone of width and height around the point position
     // we find arrond the point position and not around our coordinates
     let points = await MapPoint.find();
-    points.filter(p => 
+    points.filter(p =>
         p.x >= x - p.width // $gte = greater than or equal with width x
         && p.x <= x + p.width // $lte = lower than or equal with width x
         && p.z >= z - p.height // $gte = greater than or equal with height z
         && p.z <= z + p.height // $lte = lower than or equal with height z
     );
-    if(points.length == 0) return false // if no points found
+    if (points.length == 0) return false // if no points found
     else return points[0]; // return the first point found
 }
 
@@ -85,7 +85,7 @@ MapPointSchema.statics.RemovePointFromMap = async function (x, z) {
     // check a point already exists at this position
     let point = await MapPoint.findPoint(x, z);
     // if point update it to replace it
-    if(point) {
+    if (point) {
         await MapPoint.deleteOne({ _id: point._id });
         return true;
     } else return false;
@@ -104,9 +104,9 @@ MapPointSchema.statics.GetPointsInZone = async function (xMin, xMax, zMin, zMax)
 }
 
 MapPointSchema.statics.ping = async function () {
-	let time = Date.now();
-	await Interserver.findOne({ id: "1" });
-	return Date.now() - time;
+    let time = Date.now();
+    await MapPoint.findOne();
+    return Date.now() - time;
 }
 
 const MapPoint = mongoose.model('mappoint', MapPointSchema);
