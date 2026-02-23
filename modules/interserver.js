@@ -12,6 +12,53 @@ module.exports = {
         client.interserversdb = require('../models/interservers.model.js');
         console.log('[DATABASE] Interserver database loaded !'.brightGreen);
 
+        // Verification at startup to remove deleted servers and channels from interservers
+        let interservers = await client.interserversdb.find();
+        let nbRemoved = 0;
+        for (let interserver of interservers) {
+            let toRemove = [];
+            for (let server of interserver.servers) {
+                let guild = client.guilds.cache.get(server.id);
+                if (!guild) {
+                    toRemove.push(server);
+                    continue;
+                }
+                let channel = guild.channels.cache.get(server.channel);
+                if (!channel) {
+                    toRemove.push(server);
+                    continue;
+                }
+            }
+
+            for (let server of toRemove) {
+                try {
+                    await client.interserversdb.bulkWrite([
+                        client.bulkutility.pullInArray({
+                            'name': interserver.name
+                        }, {
+                            'servers': {
+                                id: server.id
+                            }
+                        })
+                    ]);
+                    nbRemoved++;
+
+                    // Let's refetch to get updated state for the message
+                    let updatedInterserver = await client.interserversdb.findOne({ name: interserver.name });
+                    let guildName = client.guilds.cache.get(server.id)?.name || "Un serveur inconnu";
+                    let iconUrl = client.guilds.cache.get(server.id)?.iconURL() || client.user.avatarURL();
+
+                    await client.modules.interserver.SendSystemMessage(
+                        updatedInterserver,
+                        `Le serveur ${guildName} a quitté l'interserveur car son salon n'existe plus ou le bot n'y est plus ! (automatique au redémarrage)`,
+                        iconUrl
+                    );
+
+                } catch (error) { console.log(error) }
+            }
+        }
+        if (nbRemoved > 0) console.log(`[DATABASE] ${nbRemoved} servers/channels removed from interservers database at startup`.yellow);
+
         // on typing event
         client.on('typingStart', async (typing) => {
             let user = typing.user;
@@ -34,6 +81,9 @@ module.exports = {
 
             // if no interserver, return
             if (!interserver) return;
+
+            // if typing is disabled for this interserver, return
+            if (interserver.typing === false) return;
 
             // get guilds
             let guilds = interserver.servers.filter(g => g.id !== channel.guild.id);
@@ -162,37 +212,23 @@ module.exports = {
 
             // if there are links, check for a gif or image link (.gif or tenor.com or giphy.com or .png or .jpg or .jpeg)
             if (links.length > 0) {
+                // If the user posted links, we first check if links generally are allowed!
                 for (let link of links) {
-                    if (link.includes('tenor.com')) {
-                        if (interserver.pictures) {
-                            let newlink = await resolve(link);
-                            embed.setImage(newlink);
-                            altembed.setImage(newlink);
-                            break;
-                        } else {
-                            // remove the message and stop the function
-                            try {
-                                await message.delete();
-                            } catch (err) { console.log((err).red) }
-                            return;
-                        }
-                    } else if (link.includes('giphy.com')) {
-                        if (interserver.pictures) {
-                            let newlink = await resolve(link);
-                            embed.setImage(newlink);
-                            altembed.setImage(newlink);
-                            break;
-                        } else {
-                            // remove the message and stop the function
-                            try {
-                                await message.delete();
-                            } catch (err) { console.log((err).red) }
-                            return;
-                        }
-                    } else if (link.includes('.gif') || link.includes('.png') || link.includes('.jpg') || link.includes('.jpeg')) {
-                        if (interserver.pictures) {
-                            embed.setImage(link);
-                            altembed.setImage(link);
+                    if (interserver.antilinks) return message.delete();
+
+                    let isGif = link.includes('tenor.com') || link.includes('giphy.com') || link.includes('.gif');
+                    let allowed = isGif ? interserver.gifs : interserver.pictures;
+
+                    if (isGif || link.includes('.png') || link.includes('.jpg') || link.includes('.jpeg')) {
+                        if (allowed) {
+                            if (link.includes('tenor.com') || link.includes('giphy.com')) {
+                                let newlink = await resolve(link);
+                                embed.setImage(newlink);
+                                altembed.setImage(newlink);
+                            } else {
+                                embed.setImage(link);
+                                altembed.setImage(link);
+                            }
                             break;
                         } else {
                             // remove the message and stop the function
@@ -207,9 +243,13 @@ module.exports = {
 
             // if image, add it to the embed
             if (message.attachments.size > 0) {
-                if (interserver.pictures) {
-                    embed.setImage(message.attachments.first().url);
-                    altembed.setImage(message.attachments.first().url);
+                let attachment = message.attachments.first();
+                let isGif = attachment.url.includes('.gif') || (attachment.contentType && attachment.contentType.includes('gif'));
+                let allowed = isGif ? interserver.gifs : interserver.pictures;
+
+                if (allowed) {
+                    embed.setImage(attachment.url);
+                    altembed.setImage(attachment.url);
                 } else {
                     // remove the message and stop the function
                     try {
@@ -397,36 +437,21 @@ module.exports = {
             // if there are links, check for a gif or image link (.gif or tenor.com or giphy.com or .png or .jpg or .jpeg)
             if (links.length > 0) {
                 for (let link of links) {
-                    if (link.includes('tenor.com')) {
-                        if (interserver.pictures) {
-                            let newlink = await resolve(link);
-                            embed.setImage(newlink);
-                            altembed.setImage(newlink);
-                            break;
-                        } else {
-                            // remove the message and stop the function
-                            try {
-                                await message.delete();
-                            } catch (err) { console.log((err).red) }
-                            return;
-                        }
-                    } else if (link.includes('giphy.com')) {
-                        if (interserver.pictures) {
-                            let newlink = await resolve(link);
-                            embed.setImage(newlink);
-                            altembed.setImage(newlink);
-                            break;
-                        } else {
-                            // remove the message and stop the function
-                            try {
-                                await message.delete();
-                            } catch (err) { console.log((err).red) }
-                            return;
-                        }
-                    } else if (link.includes('.gif') || link.includes('.png') || link.includes('.jpg') || link.includes('.jpeg')) {
-                        if (interserver.pictures) {
-                            embed.setImage(link);
-                            altembed.setImage(link);
+                    if (interserver.antilinks) return message.delete();
+
+                    let isGif = link.includes('tenor.com') || link.includes('giphy.com') || link.includes('.gif');
+                    let allowed = isGif ? interserver.gifs : interserver.pictures;
+
+                    if (isGif || link.includes('.png') || link.includes('.jpg') || link.includes('.jpeg')) {
+                        if (allowed) {
+                            if (link.includes('tenor.com') || link.includes('giphy.com')) {
+                                let newlink = await resolve(link);
+                                embed.setImage(newlink);
+                                altembed.setImage(newlink);
+                            } else {
+                                embed.setImage(link);
+                                altembed.setImage(link);
+                            }
                             break;
                         } else {
                             // remove the message and stop the function
@@ -441,9 +466,13 @@ module.exports = {
 
             // if image, add it to the embed
             if (message.attachments.size > 0) {
-                if (interserver.pictures) {
-                    embed.setImage(message.attachments.first().url);
-                    altembed.setImage(message.attachments.first().url);
+                let attachment = message.attachments.first();
+                let isGif = attachment.url.includes('.gif') || (attachment.contentType && attachment.contentType.includes('gif'));
+                let allowed = isGif ? interserver.gifs : interserver.pictures;
+
+                if (allowed) {
+                    embed.setImage(attachment.url);
+                    altembed.setImage(attachment.url);
                 } else {
                     // remove the message and stop the function
                     try {
@@ -576,6 +605,36 @@ module.exports = {
                         interserver, // interserver
                         `Le serveur ${guild.name} a quitté l'interserveur ! (automatique)`, // message
                         guild.iconURL() // icone du serveur
+                    );
+                });
+            }
+        });
+
+        // event when a channel is deleted
+        client.on('channelDelete', async (channel) => {
+            if (channel.type === 'DM' || channel.type === 'GROUP_DM') return;
+            if (client?.config?.modules['interserver']?.enabled) {
+                var interservers = await client.interserversdb.find({ servers: { $elemMatch: { id: channel.guild.id, channel: channel.id } } });
+
+                interservers.forEach(async interserver => {
+                    try {
+                        await client.interserversdb.bulkWrite([
+                            client.bulkutility.pullInArray({
+                                'name': interserver.name
+                            }, {
+                                'servers': {
+                                    id: channel.guild.id
+                                }
+                            })
+                        ]);
+                    } catch (error) { console.log(error) }
+
+                    interserver = await client.interserversdb.findOne({ name: interserver.name });
+
+                    await client.modules.interserver.SendSystemMessage(
+                        interserver,
+                        `Le serveur ${channel.guild.name} a quitté l'interserveur ! (automatique)`,
+                        channel.guild.iconURL()
                     );
                 });
             }

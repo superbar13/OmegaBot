@@ -59,6 +59,10 @@ const interserverSchema = new Schema({
 		type: Boolean,
 		default: true
 	},
+	typing: {
+		type: Boolean,
+		default: true
+	},
 	antispam: {
 		type: Boolean,
 		default: true
@@ -112,6 +116,7 @@ interserverSchema.statics.createModel = async function (object) {
 		pictures: object.pictures || true,
 		gifs: object.gifs || true,
 		invites: object.invites || false,
+		typing: object.typing || true,
 		antispam: object.antispam || false,
 		antilinks: object.antilinks || false,
 		maxspamtime: object.maxspamtime || 5,

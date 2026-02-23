@@ -60,6 +60,11 @@ module.exports = {
                 .setDescription('Si les gifs sont autorisés (donc affichés) ou non')
                 .setRequired(true)
             )
+            .addBooleanOption(option => option
+                .setName('typing')
+                .setDescription('Si le "est en train d\'écrire" est partagé ou non')
+                .setRequired(true)
+            )
             .addStringOption(option => option
                 .setName('keycode')
                 .setDescription('Le keycode de l\'interserveur')
@@ -156,6 +161,11 @@ module.exports = {
             .addBooleanOption(option => option
                 .setName('gifs')
                 .setDescription('Si les gifs sont autorisés (donc affichés) ou non')
+                .setRequired(false)
+            )
+            .addBooleanOption(option => option
+                .setName('typing')
+                .setDescription('Si le "est en train d\'écrire" est partagé ou non')
                 .setRequired(false)
             )
             .addStringOption(option => option
@@ -312,6 +322,7 @@ module.exports = {
             var antiswear = interaction.options.getBoolean('antiswear');
             var pictures = interaction.options.getBoolean('pictures');
             var gifs = interaction.options.getBoolean('gifs');
+            var typing = interaction.options.getBoolean('typing');
             var logo = interaction.options.getString('logo');
             if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
             var banner = interaction.options.getString('banner');
@@ -392,6 +403,7 @@ module.exports = {
                 antiswear: antiswear,
                 pictures: pictures,
                 gifs: gifs,
+                typing: typing,
                 logo: logo,
                 banner: banner,
                 bannedlinks: bannedlinks,
@@ -486,6 +498,7 @@ module.exports = {
             var antiswear = interaction.options.getBoolean('antiswear');
             var pictures = interaction.options.getBoolean('pictures');
             var gifs = interaction.options.getBoolean('gifs');
+            var typing = interaction.options.getBoolean('typing');
             var logo = interaction.options.getString('logo');
             if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
             var banner = interaction.options.getString('banner');
@@ -536,17 +549,17 @@ module.exports = {
                 return;
             }
 
-            // modifie l'interserveur
             await interaction.client.interserversdb.updateOne({ name: nom }, {
                 description: description || interserver.description,
-                private: private || interserver.private,
+                private: private !== null ? private : interserver.private,
                 keycode: keycode || interserver.keycode,
-                invites: invites || interserver.invites,
-                antispam: antispam || interserver.antispam,
-                antilinks: antilinks || interserver.antilinks,
-                antiswear: antiswear || interserver.antiswear,
-                pictures: pictures || interserver.pictures,
-                gifs: gifs || interserver.gifs,
+                invites: invites !== null ? invites : interserver.invites,
+                antispam: antispam !== null ? antispam : interserver.antispam,
+                antilinks: antilinks !== null ? antilinks : interserver.antilinks,
+                antiswear: antiswear !== null ? antiswear : interserver.antiswear,
+                pictures: pictures !== null ? pictures : interserver.pictures,
+                gifs: gifs !== null ? gifs : interserver.gifs,
+                typing: typing !== null ? typing : interserver.typing,
                 logo: logo || interserver.logo,
                 banner: banner || interserver.banner,
                 bannedlinks: bannedlinks || interserver.bannedlinks,
@@ -631,6 +644,7 @@ module.exports = {
                     { name: 'Antiswear', value: interserver.antiswear ? '<:check:848664730838499409> Oui' : '<:erreur:848664731098153030> Non', inline: true },
                     { name: 'Images', value: interserver.pictures ? '<:check:848664730838499409> Oui' : '<:erreur:848664731098153030> Non', inline: true },
                     { name: 'Gifs', value: interserver.gifs ? '<:check:848664730838499409> Oui' : '<:erreur:848664731098153030> Non', inline: true },
+                    { name: 'Typing', value: interserver.typing ? '<:check:848664730838499409> Oui' : '<:erreur:848664731098153030> Non', inline: true },
                     { name: 'Liens bannis', value: interserver.bannedlinks.length > 0 ? interserver.bannedlinks.join(', ') : 'Aucun' },
                     { name: 'Mots bannis', value: interserver.bannedwords.length > 0 ? interserver.bannedwords.join(', ') : 'Aucun' }
                 )
