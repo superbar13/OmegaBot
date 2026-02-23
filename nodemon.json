@@ -1,0 +1,11 @@
+{
+    "ignore": [
+        "config.json",
+        "*.db",
+        "*.log"
+    ],
+    "watch": [
+        "*"
+    ],
+    "ext": "js,json"
+}

@@ -42,8 +42,8 @@ MapSchema.statics.SaveMap = async function (object) {
     let chunksL = await Map.find({}).countDocuments();
     let chunks = [];
     let i = 0;
-    process.stdout.clearLine();
-    process.stdout.cursorTo(0);
+    if (process.stdout.clearLine) process.stdout.clearLine();
+    if (process.stdout.cursorTo) process.stdout.cursorTo(0);
     process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
     await Promise.all(Array.from({ length: chunksL }, async () => {
         chunks.push(await Map.findOne({}).skip(i));
@@ -76,8 +76,8 @@ MapSchema.statics.SaveMap = async function (object) {
         }
         i++;
         // remove last console.log and add a new one with the percent
-        process.stdout.clearLine();
-        process.stdout.cursorTo(0);
+        if (process.stdout.clearLine) process.stdout.clearLine();
+        if (process.stdout.cursorTo) process.stdout.cursorTo(0);
         process.stdout.write("Saving map... " + Math.round(i / object.chunks.length * 100) + "%");
     }));
     // sauter une ligne avec process.stdout.write("\n");
@@ -94,8 +94,8 @@ MapSchema.statics.GetMap = async function () {
     let chunksL = await Map.find({}).countDocuments();
     let chunks = [];
     let i = 0;
-    process.stdout.clearLine();
-    process.stdout.cursorTo(0);
+    if (process.stdout.clearLine) process.stdout.clearLine();
+    if (process.stdout.cursorTo) process.stdout.cursorTo(0);
     process.stdout.write("Fetching map... " + Math.round(i / chunksL * 100) + "%");
     await Promise.all(Array.from({ length: chunksL }, async () => {
         chunks.push(await Map.findOne({}).skip(i));

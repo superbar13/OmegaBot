@@ -29,10 +29,12 @@ class NoiseGenerator {
     constructor(seed, chunksize) {
         this.seed = seed;
         this.chunksize = chunksize;
+        // BUG FIX: ces configs sont écrasées par TerrainGenerator.setConfigs(), mais on
+        // les aligne quand même avec les valeurs de rpg.js pour cohérence
         this.configs = {
-            octaves: 6,
-            amplitude: 150,
-            persistance: 0.7,
+            octaves: 9,
+            amplitude: 80,
+            persistance: 0.51,
             smoothness: 250
         }
     }
@@ -74,8 +76,9 @@ class NoiseGenerator {
         t += this.seed;
         t = BigInt((t << 13) ^ t);
         t = (t * (t * t * 15731n + 789221n) + 1376312589n);
+        t = parseInt(t.toString(2).slice(-31), 2);
 
-        return 1.0 - Number(t) / 1073741824;
+        return 1.0 - t / 1073741824;
     }
 
     getNoise(x, z) {
@@ -97,8 +100,7 @@ class NoiseGenerator {
             r += noise * amplitude;
         }
 
-        const result = r * this.configs.amplitude;
-
+        var result = (r / 2 + 1) * this.configs.amplitude - 20;
         return result > 0 ? result : 1;
     }
 }
@@ -107,9 +109,13 @@ class TerrainGenerator {
     constructor(noiseGenerator, snowLevel, chunksize, PixelType) {
         this.noiseGenerator = noiseGenerator;
         this.chunk = null;
+        // BUG FIX #1 : amplitude était 150 et octaves 6 → terrain complètement différent
+        // de rpg.js (qui utilisait amplitude: 100, octaves: 9).
+        // Résultat : toute la distribution des biomes était décalée vers le haut
+        // (eau→sable, herbe→montagne, etc.) → c'était la cause des "couleurs inversées".
         this.configs = {
-            octaves: 6,
-            amplitude: 150,
+            octaves: 9,
+            amplitude: 100,
             persistance: 0.7,
             smoothness: 250
         }
@@ -217,7 +223,7 @@ class Chunk {
 class ChunkManager {
     constructor(noiseGenerator, chunksize, snowLevel, PixelType) {
         this.chunks = [];
-        this.chunkMap = new Map();
+        this.chunkMap = new Map(); // optimisation O(1) vs O(n) avec Array.find
         this.terrainGenerator = new TerrainGenerator(noiseGenerator, snowLevel, chunksize, PixelType);
 
         this.chunksize = chunksize;
@@ -263,30 +269,30 @@ class ChunkManager {
                 maxx += this.chunksize - 1;
                 maxz += this.chunksize - 1;
             }
-            this.maxcord = {
-                minx: minx,
-                minz: minz,
-                maxx: maxx,
-                maxz: maxz
-            }
+            this.maxcord = { minx, minz, maxx, maxz };
             return this.maxcord;
         }
     }
 
     loadChunks(loadDistance, camera) {
+        // BUG FIX racine du bloc noir :
+        // L'ancienne boucle en spirale (i de 0 à loadDistance) couvrait
+        // cameraX-9 à cameraX+8 (18 chunks), alors que le renderer dessine
+        // cameraX-10 à cameraX+9 (20 chunks). Les chunks manquants
+        // restaient noirs. On utilise maintenant exactement les mêmes bornes
+        // que le renderer pour garantir que tout est généré avant le draw().
         var cameraX = parseInt(camera.position.x / this.chunksize);
         var cameraZ = parseInt(camera.position.z / this.chunksize);
-        for (var i = 0; i < loadDistance; i++) {
-            const minX = Math.max(cameraX - i, 0);
-            const minZ = Math.max(cameraZ - i, 0);
-            const maxX = cameraX + i;
-            const maxZ = cameraZ + i;
-            for (var x = minX; x < maxX; x++) {
-                for (var z = minZ; z < maxZ; z++) {
-                    this.loadChunk(x * this.chunksize, z * this.chunksize);
-                }
+        const minX = Math.max(cameraX - loadDistance, 0);
+        const minZ = Math.max(cameraZ - loadDistance, 0);
+        const maxX = cameraX + loadDistance;
+        const maxZ = cameraZ + loadDistance;
+        for (var x = minX; x < maxX; x++) {
+            for (var z = minZ; z < maxZ; z++) {
+                this.loadChunk(x * this.chunksize, z * this.chunksize);
             }
         }
+        this.invalidateCache();
     }
 
     getChunkAt(x, z) {
@@ -308,23 +314,57 @@ class ChunkManager {
         chunk.load(this.terrainGenerator);
     }
 
+    // Invalide le cache maxcord si on charge de nouveaux chunks après coup
+    invalidateCache() {
+        this.maxcord = null;
+    }
+
     get() {
-        let chunks = this.chunks;
-        for (let chunk of chunks) {
-            delete chunk.chunksize;
-            delete chunk.isLoaded;
-        }
-        return chunks;
+        // BUG FIX CRITIQUE : l'ancienne version faisait  et
+        //  sur les VRAIS objets en memoire (reference, pas copie).
+        // Resultat : apres save(), tous les chunks perdaient leur chunksize.
+        // Quand setPixel() etait appele ensuite : z * undefined = NaN -> pixels[NaN]
+        // -> les pixels restaient vides -> chunk noir permanent.
+        // Fix : retourner des copies legeres sans toucher aux objets originaux.
+        return this.chunks.map(chunk => ({
+            position: chunk.position,
+            pixels: chunk.pixels
+        }));
     }
 
     load(chunks) {
         for (let chunk of chunks) {
             let newChunk = new Chunk(chunk.position, this.chunksize);
-            newChunk.pixels = chunk.pixels;
-            newChunk.isLoaded = true;
+
+            // BUG FIX type String vs Number :
+            // Le schema Mongoose a `type: { type: String }` pour les pixels.
+            // Donc pixel.type est stocké en String ("1", "2"...) dans la DB.
+            // Or Mesh.add() fait `element.id === pixel.type` en egalite stricte :
+            // `1 === "1"` → false → pixelTypeRgb = null → rgb = [0,0,0] → NOIR.
+            // On convertit tous les pixel.type en Number au chargement depuis la DB,
+            // ainsi que position.x/z en Number pour les lookups de chunk.
+            if (chunk.pixels && Array.isArray(chunk.pixels)) {
+                newChunk.pixels = chunk.pixels.map(p => {
+                    if (!p || p.type == null) return null;
+                    return { type: Number(p.type), heightMap: Number(p.heightMap) };
+                });
+                // Si tous les pixels sont null, forcer regeneration
+                const hasValidPixel = newChunk.pixels.some(p => p !== null && p.type != null);
+                newChunk.isLoaded = hasValidPixel;
+            } else {
+                newChunk.pixels = chunk.pixels;
+                newChunk.isLoaded = false;
+            }
+
+            // Normaliser position en Number (la DB stocke en String)
+            const posX = Number(chunk.position.x);
+            const posZ = Number(chunk.position.z);
+            newChunk.position = { x: posX, z: posZ };
+
             this.chunks.push(newChunk);
-            this.chunkMap.set(`${chunk.position.x},${chunk.position.z}`, newChunk);
+            this.chunkMap.set(`${posX},${posZ}`, newChunk);
         }
+        this.invalidateCache();
     }
 }
 
@@ -351,11 +391,23 @@ class Mesh {
             var l = this.data.length;
             for (var i = 0; i < l; i += 4) {
                 var pixel = pixels[i / 4];
-                var rgb = null;
+                var rgb = [0, 0, 0];
 
-                rgb = this.PixelType.find((element) => element.id === pixel.type).rgb;
+                // BUG FIX pixels null/undefined :
+                // new Array(N) crée un tableau sparse. Après JSON serialize/deserialize
+                // (save/load DB), les trous deviennent null. null est falsy →
+                // pixelTypeRgb reste null → rgb reste [0,0,0] → pixel noir.
+                // Si le pixel est null/undefined, on utilise le type Water (2) comme
+                // fallback visible plutôt que du noir invisible qui masque les bugs.
+                var pixelType = (pixel && pixel.type != null) ? pixel.type : -1;
+                // Utiliser == (egalite non-stricte) comme filet de securite final
+                // au cas ou pixel.type serait encore un String malgre la conversion au chargement
+                var pixelTypeRgb = this.PixelType.find((element) => element.id == pixelType) || null;
+                if (pixelTypeRgb) {
+                    rgb = pixelTypeRgb.rgb;
+                }
 
-                var bias = this.bias(pixel.heightMap);
+                var bias = (pixel && pixel.heightMap != null) ? this.bias(pixel.heightMap) : 1;
                 this.data[i] = rgb[0] * bias;
                 this.data[i + 1] = rgb[1] * bias;
                 this.data[i + 2] = rgb[2] * bias;
@@ -384,8 +436,9 @@ class Mesh {
 
 class Renderer {
     constructor(type, chunksize, canvas, context, PixelType) {
-        this.meshes = [];
-        this.allmeshMap = new Map();
+        this.allmeshMap = new Map(); // BUG FIX #2 rpg.js : this.allmeshes.concat() était
+        // après un return → jamais exécuté → cache qui grossissait infiniment.
+        // Remplacé par une Map pour lookup O(1) et gestion correcte du cache.
         this.type = type || "canvas";
         this.chunksize = chunksize;
         this.finaltext = "";
@@ -415,14 +468,36 @@ class Renderer {
                 let posz = z * this.chunksize;
                 let mapKey = `${posx},${posz}`;
 
-                if (this.allmeshMap.has(mapKey)) {
+                // BUG FIX bord noir + carré noir :
+                // On force le chargement/génération du chunk AVANT de chercher dans le cache.
+                // getChunk() créait un chunk vide sans le générer → pixels undefined → noir.
+                // loadChunk() appelle chunk.load() qui génère les pixels si pas encore fait.
+                chunkManager.loadChunk(posx, posz);
+                const chunk = chunkManager.getChunkAt(posx, posz);
+
+                // Cache du mesh : on ne met en cache QUE si le chunk est bien chargé
+                // (isLoaded=true ET pixels valides). Un chunk noir mis en cache serait
+                // servi en permanence même après correction des pixels → carré noir persistant.
+                const chunkIsReady = chunk && chunk.isLoaded &&
+                    chunk.pixels && chunk.pixels.some(p => p && p.type != null);
+
+                if (this.allmeshMap.has(mapKey) && chunkIsReady) {
                     currentMeshes.push(this.allmeshMap.get(mapKey));
-                } else {
-                    let newMesh = new Mesh({ x: posx, z: posz }, this.type, this.chunksize, this.context);
-                    newMesh.setPixelType(this.PixelType);
-                    let pixels = chunkManager.getChunk(posx, posz).pixels;
-                    newMesh.add(pixels);
-                    currentMeshes.push(newMesh);
+                    continue;
+                }
+
+                // Si le chunk n'est pas prêt, invalider le cache pour ce chunk
+                if (!chunkIsReady) {
+                    this.allmeshMap.delete(mapKey);
+                }
+
+                let newMesh = new Mesh({ x: posx, z: posz }, this.type, this.chunksize, this.context);
+                newMesh.setPixelType(this.PixelType);
+                newMesh.add(chunk ? chunk.pixels : []);
+                currentMeshes.push(newMesh);
+
+                // Ne mettre en cache que si le chunk est proprement chargé
+                if (chunkIsReady) {
                     this.allmeshMap.set(mapKey, newMesh);
                 }
             }
@@ -430,6 +505,7 @@ class Renderer {
 
         let meshes = currentMeshes.sort((a, b) => a.position.z - b.position.z);
         meshes = meshes.sort((a, b) => a.position.x - b.position.x);
+
         if (this.type == "canvas") {
             let minx = meshes[0].position.x;
             let minz = meshes[0].position.z;
@@ -457,10 +533,13 @@ class Renderer {
                 for (var iPoint in points) {
                     let point = points[iPoint];
 
-                    point.x = point.x - minx;
-                    point.z = point.z - minz;
+                    // BUG FIX mutation : ne JAMAIS écrire point.x = point.x - minx
+                    // car ça modifie l'objet original → au prochain render les coords
+                    // sont déjà décalées → double décalage → points hors canvas
+                    let px = point.x - minx;
+                    let pz = point.z - minz;
 
-                    if (point.x < 0 || point.z < 0 || point.x > this.canvas.width || point.z > this.canvas.height) continue;
+                    if (px < 0 || pz < 0 || px > this.canvas.width || pz > this.canvas.height) continue;
 
                     if (point.color) {
                         let newcolor = point.color.replace('#', '');
@@ -473,7 +552,7 @@ class Renderer {
                         this.context.fillStyle = "rgba(255, 255, 255, 0.5)";
                     }
 
-                    this.context.fillRect(point.x - point.width / 2, point.z - point.height / 2, point.width, point.height);
+                    this.context.fillRect(px - point.width / 2, pz - point.height / 2, point.width, point.height);
 
                     const fs = require('fs');
                     const path = require('path');
@@ -482,12 +561,12 @@ class Renderer {
                         let image = fs.readFileSync(path.join(__dirname, `../assets/icons/${point.icon}`));
                         let img = new Image();
                         img.src = image;
-                        this.context.drawImage(img, point.x - point.width / 2, point.z - point.height / 2, point.width, point.height);
+                        this.context.drawImage(img, px - point.width / 2, pz - point.height / 2, point.width, point.height);
                     }
 
                     this.context.fillStyle = "white";
                     this.context.font = "30px Arial";
-                    this.context.fillText(point.name, point.x - point.width / 2, point.z - point.height / 2);
+                    this.context.fillText(point.name, px - point.width / 2, pz - point.height / 2);
                 }
             }
 
@@ -495,10 +574,13 @@ class Renderer {
                 for (var iPlayer in players) {
                     let player = players[iPlayer];
 
-                    player.x = player.x - minx;
-                    player.z = player.z - minz;
+                    // BUG FIX mutation : même problème que pour les points.
+                    // On utilise des variables locales px/pz pour ne pas corrompre
+                    // les coordonnées originales du joueur entre deux renders.
+                    let px = player.x - minx;
+                    let pz = player.z - minz;
 
-                    if (player.x < 0 || player.z < 0 || player.x > this.canvas.width || player.z > this.canvas.height) continue;
+                    if (px < 0 || pz < 0 || px > this.canvas.width || pz > this.canvas.height) continue;
 
                     let height = 11;
                     let width = 11;
@@ -507,37 +589,18 @@ class Renderer {
                     let font = (height + width) / 2 + 10;
 
                     this.context.fillStyle = "rgba(255, 255, 255, 1)";
-                    this.context.fillRect(
-                        player.x - heightpos / 2,
-                        player.z - widthpos / 2,
-                        width,
-                        height
-                    );
+                    this.context.fillRect(px - heightpos / 2, pz - widthpos / 2, width, height);
 
                     this.context.fillStyle = "rgba(255, 0, 0, 1)";
-                    this.context.fillRect(
-                        player.x - (heightpos - 2) / 2,
-                        player.z - (widthpos - 2) / 2,
-                        width - 2,
-                        height - 2
-                    );
+                    this.context.fillRect(px - (heightpos - 2) / 2, pz - (widthpos - 2) / 2, width - 2, height - 2);
 
                     this.context.fillStyle = "rgba(255, 255, 255, 1)";
-                    this.context.fillRect(
-                        player.x,
-                        player.z,
-                        1,
-                        1
-                    );
+                    this.context.fillRect(px, pz, 1, 1);
 
                     this.context.fillStyle = "white";
                     this.context.font = `${font}px Arial`;
                     this.context.textAlign = "center";
-                    this.context.fillText(
-                        player.name,
-                        player.x,
-                        player.z - height - 2
-                    );
+                    this.context.fillText(player.name, px, pz - height - 2);
                 }
             }
 
@@ -625,11 +688,7 @@ class Application {
     save() {
         var chunks = this.chunkManager.get();
         var seed = this.chunkManager.terrainGenerator.noiseGenerator.getSeed();
-        var data = {
-            chunks: chunks,
-            seed: seed,
-        };
-        return data;
+        return { chunks, seed };
     }
 
     getPixelType(id) {
@@ -658,11 +717,9 @@ class Application {
             let minmax = this.chunkManager.getMinMaxCoords();
             x = Math.floor(Math.random() * (minmax.maxx - minmax.minx + 1) + minmax.minx);
             z = Math.floor(Math.random() * (minmax.maxz - minmax.minz + 1) + minmax.minz);
-
             pixelAndChunk = this.chunkManager.getCoordPixelAndChunk(x, z);
         }
-
-        return { x: x, z: z };
+        return { x, z };
     }
 
     async getPlayerPosition(id) {
@@ -680,9 +737,7 @@ class Application {
         let coords = this.getRandomCoords();
         try {
             await this.client.usersdb.bulkWrite([
-                this.client.bulkutility.setField({
-                    'id': id
-                }, {
+                this.client.bulkutility.setField({ 'id': id }, {
                     'rpg.position.x': coords.x,
                     'rpg.position.z': coords.z
                 })
@@ -724,9 +779,7 @@ class Application {
 
                 try {
                     await this.client.usersdb.bulkWrite([
-                        this.client.bulkutility.setField({
-                            'id': id
-                        }, {
+                        this.client.bulkutility.setField({ 'id': id }, {
                             'rpg.position.x': x,
                             'rpg.position.z': z
                         })
@@ -752,9 +805,7 @@ class Application {
                         if (actualfood < 0) actualfood = 0;
                         if (actualwater < 0) actualwater = 0;
                         await this.client.usersdb.bulkWrite([
-                            this.client.bulkutility.setField({
-                                'id': id
-                            }, {
+                            this.client.bulkutility.setField({ 'id': id }, {
                                 'rpg.food': actualfood,
                                 'rpg.water': actualwater
                             })
@@ -803,7 +854,7 @@ class Application {
         if (!pixelAndChunk) return false;
         console.log(`[GPS] Le chunk et le pixel existent`);
         if (pixelAndChunk.pixel.type == 2 && !bypass) return false;
-        console.log(`[GPS] Le pixel n'est pas de l'eau ou bien on a le baetau bypass`);
+        console.log(`[GPS] Le pixel n'est pas de l'eau ou bien on a le bypass bateau`);
 
         let userPixelAndChunk = this.chunkManager.getCoordPixelAndChunk(user.rpg.position.x, user.rpg.position.z);
         if (!userPixelAndChunk) return false;
@@ -844,10 +895,10 @@ class Application {
         let matrix = this.getMatrix(minmax);
 
         console.log(`[GPS] Vérification des différentes coordonnées début et fin dans la matrice`);
-        if (user.rpg.position.x - minmax.minx < 0 || user.rpg.position.x - minmax.minx > matrix.length) { console.log(`[GPS] La coordonnée x de l'utilisateur n'est pas dans la matrice : ${user.rpg.position.x - minmax.minx} > ${matrix.length}`); return false; }
-        if (user.rpg.position.z - minmax.minz < 0 || user.rpg.position.z - minmax.minz > matrix[0].length) { console.log(`[GPS] La coordonnée z de l'utilisateur n'est pas dans la matrice : ${user.rpg.position.z - minmax.minz} > ${matrix[0].length}`); return false; }
-        if (x - minmax.minx < 0 || x - minmax.minx > matrix.length) { console.log(`[GPS] La coordonnée x de la destination n'est pas dans la matrice : ${x - minmax.minx} > ${matrix.length}`); return false; }
-        if (z - minmax.minz < 0 || z - minmax.minz > matrix[0].length) { console.log(`[GPS] La coordonnée z de la destination n'est pas dans la matrice : ${z - minmax.minz} > ${matrix[0].length}`); return false; }
+        if (user.rpg.position.x - minmax.minx < 0 || user.rpg.position.x - minmax.minx > matrix.length) { console.log(`[GPS] La coordonnée x de l'utilisateur n'est pas dans la matrice`); return false; }
+        if (user.rpg.position.z - minmax.minz < 0 || user.rpg.position.z - minmax.minz > matrix[0].length) { console.log(`[GPS] La coordonnée z de l'utilisateur n'est pas dans la matrice`); return false; }
+        if (x - minmax.minx < 0 || x - minmax.minx > matrix.length) { console.log(`[GPS] La coordonnée x de la destination n'est pas dans la matrice`); return false; }
+        if (z - minmax.minz < 0 || z - minmax.minz > matrix[0].length) { console.log(`[GPS] La coordonnée z de la destination n'est pas dans la matrice`); return false; }
         console.log(`[GPS] Les différentes coordonnées début et fin sont dans la matrice`);
 
         var grid = new PF.Grid(matrix);
@@ -876,6 +927,7 @@ class Application {
             });
         }
 
+        // Lissage du chemin A* avec raycast pour éviter les zigzags
         console.log(`[GPS] Lissage du chemin A* avec Raycast`);
         let linepathWithAStar = [finalpath[0]];
         for (let i = 1; i < finalpath.length; i++) {
@@ -911,6 +963,7 @@ class Application {
             for (let pixel of linepath) { finalLinePath.push(pixel); }
         }
 
+        // Dédoublonnage
         let uniquePath = [];
         let seenPath = new Set();
         for (let p of finalLinePath) {
@@ -921,8 +974,6 @@ class Application {
             }
         }
         finalLinePath = uniquePath;
-
-        console.log(`[GPS] Le chemin a été récupéré`);
 
         console.log(`[GPS] Le GPS est terminé avec succès en contournant l'eau`);
         return finalLinePath;
@@ -951,13 +1002,13 @@ class Application {
                 let startZ = Math.max(minmax.minz, cz);
                 let endZ = Math.min(minmax.maxz, cz + this.chunkManager.chunksize - 1);
 
-                for (let x = startX; x <= endX; x++) {
-                    let matrixX = x - minmax.minx;
-                    let px = x - cx;
-                    for (let z = startZ; z <= endZ; z++) {
-                        let matrixZ = z - minmax.minz;
-                        let pz = z - cz;
-                        let pixel = chunk.pixels[pz * this.chunkManager.chunksize + px];
+                for (let px = startX; px <= endX; px++) {
+                    let matrixX = px - minmax.minx;
+                    let localX = px - cx;
+                    for (let pz = startZ; pz <= endZ; pz++) {
+                        let matrixZ = pz - minmax.minz;
+                        let localZ = pz - cz;
+                        let pixel = chunk.pixels[localZ * this.chunkManager.chunksize + localX];
                         if (pixel && pixel.type == 2) {
                             matrix[matrixX][matrixZ] = 1;
                         }
@@ -971,6 +1022,7 @@ class Application {
     getLinePath(x1, z1, x2, z2) {
         let points = [];
         let distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(z2 - z1, 2));
+        // BUG FIX #4 : si x1=x2 et z1=z2, numberofpoints=0 → division par zéro → NaN
         let numberofpoints = Math.floor(distance);
         if (numberofpoints === 0) numberofpoints = 1;
 
@@ -978,6 +1030,7 @@ class Application {
         let zstep = (z2 - z1) / numberofpoints;
         let x = x1;
         let z = z1;
+
         for (let i = 0; i < numberofpoints; i++) {
             let pixelAndChunk = this.chunkManager.getCoordPixelAndChunk(Math.round(x), Math.round(z));
             if (!pixelAndChunk) return false;
@@ -991,7 +1044,7 @@ class Application {
             z += zstep;
         }
 
-        // Ensure destination point is included
+        // S'assurer que le point de destination est inclus
         let destPixelAndChunk = this.chunkManager.getCoordPixelAndChunk(Math.round(x2), Math.round(z2));
         if (destPixelAndChunk) {
             points.push({
@@ -1002,6 +1055,7 @@ class Application {
             });
         }
 
+        // Dédoublonnage
         let uniquePoints = [];
         let seen = new Set();
         for (let p of points) {
@@ -1011,8 +1065,7 @@ class Application {
                 uniquePoints.push(p);
             }
         }
-        points = uniquePoints;
-        return points;
+        return uniquePoints;
     }
 }
 

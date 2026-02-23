@@ -19,6 +19,7 @@ module.exports = {
         ),
     category: 'level',
     async execute(interaction) {
+        if (!interaction.isCommand()) return; // ignore button interactions (handled by collector)
         if (!interaction.client.config.modules['levels'].enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.' });
 
         const createbar = interaction.client.modules.createBar.createBar;
