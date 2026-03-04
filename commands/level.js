@@ -1,16 +1,16 @@
 // level command module to be used in index.js
 const { EmbedBuilder } = require('discord.js');
-const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
+const { StringSelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
     data: new SlashCommandBuilder()
-    .setName('level')
-    .setDescription('Affiche le niveau global d\'un utilisateur')
-    .addUserOption(option => option.setName('utilisateur').setDescription('Utilisateur dont vous voulez voir le niveau')),
+        .setName('level')
+        .setDescription('Affiche le niveau global d\'un utilisateur')
+        .addUserOption(option => option.setName('utilisateur').setDescription('Utilisateur dont vous voulez voir le niveau')),
     category: 'level',
     telegram: 'disabled',
-    async execute(interaction){
-        if(!interaction.client.config.modules['levels'].enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.'});
+    async execute(interaction) {
+        if (!interaction.client.config.modules['levels'].enabled) return interaction.reply({ content: '> ❌ Le module est désactivé.' });
 
         const createbar = interaction.client.modules.createBar.createBar;
 
@@ -20,12 +20,12 @@ module.exports = {
 
         // get the user
         let user = interaction.options.getUser('utilisateur');
-        if(!user){
+        if (!user) {
             user = interaction.user;
         }
         // get the user model
         const userModel = await interaction.client.usersdb.findOne({ id: user.id });
-        if(!userModel){
+        if (!userModel) {
             await interaction.reply('> ❌ Une erreur est survenue');
             return;
         }
@@ -34,21 +34,21 @@ module.exports = {
         // create embed
         let XPtoNextLevel = Math.floor(goalMultiplier * Math.pow(base, userModel.levels.level));
         const embed = new EmbedBuilder()
-        .setTitle('🤩 Niveau Global de ' + user.username + ' 🤩')
-        .setDescription(createbar({value: userModel.levels.xp, max: XPtoNextLevel}))
-        .addFields(
-            { name: '🔰 Niveau', value: userModel.levels.level.toString(), inline: true },
-            { name: '💫 XP', value: (userModel.levels.xp + '/' + XPtoNextLevel).toString(), inline: true },
-        )
-        .setFooter({ text: botname, iconURL: avatar })
-        .setColor(interaction.client.modules.randomcolor.getRandomColor())
-        .setTimestamp()
-        .setImage('https://cdn.discordapp.com/attachments/909475569459163186/1077679404240613396/bluebar.gif')
-        // user avatar (and in full 4K and gif)
-        .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 4096 }))
-        try{
+            .setTitle('🤩 Niveau Global de ' + user.username + ' 🤩')
+            .setDescription(createbar({ value: userModel.levels.xp, max: XPtoNextLevel }))
+            .addFields(
+                { name: '🔰 Niveau', value: userModel.levels.level.toString(), inline: true },
+                { name: '💫 XP', value: (userModel.levels.xp + '/' + XPtoNextLevel).toString(), inline: true },
+            )
+            .setFooter({ text: botname, iconURL: avatar })
+            .setColor(interaction.client.modules.randomcolor.getRandomColor())
+            .setTimestamp()
+            .setImage('https://cdn.discordapp.com/attachments/909475569459163186/1077679404240613396/bluebar.gif')
+            // user avatar (and in full 4K and gif)
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 4096 }))
+        try {
             await interaction.reply({ embeds: [embed] });
-        }catch(err){
+        } catch (err) {
             await interaction.reply('> ❌ Une erreur est survenue');
             console.log(err);
         }

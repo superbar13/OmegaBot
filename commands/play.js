@@ -23,7 +23,7 @@ module.exports = {
                 .setDescription('Joue la musique de votre choix')
                 .addStringOption(option => option.setName('music').setDescription('Nom de la musique').setRequired(true))
         )
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'music',
     async execute(interaction) {
         // check if subcommand is radio
@@ -34,7 +34,7 @@ module.exports = {
             var voiceconfig = await interaction.client.serversdb.findOne({ id: interaction.guild.id }).select('voiceconfig'); // get the voiceconfig from the database
             voiceconfig = voiceconfig?.voiceconfig;
             if ((voiceconfig?.adminonly || false) == true && !interaction?.member?.permissions.has(PermissionsBitField.Flags.Administrator)) {
-                interaction.editReply({ content: '> ❌ Seul un administrateur peut utiliser cette commande.', ephemeral: true });
+                interaction.editReply({ content: '> ❌ Seul un administrateur peut utiliser cette commande.', flags: 64 });
                 return;
             }
             if (!interaction?.member?.voice?.channel?.id) {

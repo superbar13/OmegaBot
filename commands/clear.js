@@ -10,7 +10,7 @@ module.exports = {
         .setDescription('Supprime un nombre de messages')
         .addIntegerOption(option => option.setName('nombre').setDescription('Nombre de messages a supprimer').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'moderation',
     telegram: 'enabled',
     async execute(interaction) {

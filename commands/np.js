@@ -10,7 +10,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('np')
         .setDescription('Quelle chanson est en cours de lecture ?')
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'music',
     ratelimit: true,
     async execute(interaction) {

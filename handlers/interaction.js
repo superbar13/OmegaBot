@@ -1,4 +1,20 @@
+const { ChannelType } = require('discord.js');
 const ratelimit = new Map();
+
+function getLogContext(interaction) {
+    if (interaction.guild) {
+        return `, dans le serveur ${interaction.guild.name}, dans le salon ${interaction.channel?.name || 'inconnu'}`;
+    } else {
+        if (interaction.channel?.type === ChannelType.DM) {
+            return `, en DM avec ${interaction.user.username}`;
+        } else if (interaction.channel?.type === ChannelType.GroupDM) {
+            return `, dans le groupe ${interaction.channel.name || interaction.user.username}`;
+        } else {
+            // Context user install or fallback
+            return `, en contexte privé (DM/Groupe) avec ${interaction.user.username}`;
+        }
+    }
+}
 
 module.exports = {
     name: 'interaction',
@@ -78,10 +94,13 @@ module.exports = {
                 if (client.commands.get(commandName).type == "slash") {
                     try {
                         client.commands.get(commandName).execute(interaction);
-                        console.log(`[SLASH] Commande slash ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        console.log(`[SLASH] Commande slash ${commandName} exécutée par ${interaction.user.username}${getLogContext(interaction)}`.brightGreen);
                     } catch (error) {
-                        interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, ephemeral: true });
-                        console.log(`[SLASH] Commande slash ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
+                        try {
+                            if (interaction.replied || interaction.deferred) await interaction.followUp({ content: `Une erreur est survenue lors de l'exécution de la commande.`, flags: 64 });
+                            else await interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, flags: 64 });
+                        } catch (e) { }
+                        console.log(`[SLASH] Commande slash ${commandName} exécutée par ${interaction.user.username}${getLogContext(interaction)}`.brightRed);
                         console.log(error);
                     }
                 }
@@ -94,7 +113,7 @@ module.exports = {
                 if (['select', 'slash'].includes(client.commands.get(commandName).type)) {
                     try {
                         client.commands.get(commandName).execute(interaction);
-                        console.log(`[SELECT] Select menu ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        console.log(`[SELECT] Select menu ${commandName} exécuté par ${interaction.user.username}${getLogContext(interaction)}`.brightGreen);
                     } catch (error) { }
                 }
             } else if (interaction.isUserContextMenuCommand()) {
@@ -105,10 +124,13 @@ module.exports = {
                 if (client.commands.get(commandName).type == "contextmenu") {
                     try {
                         client.commands.get(commandName).execute(interaction)
-                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}${getLogContext(interaction)}`.brightGreen);
                     } catch (error) {
-                        interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, ephemeral: true });
-                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
+                        try {
+                            if (interaction.replied || interaction.deferred) await interaction.followUp({ content: `Une erreur est survenue lors de l'exécution de la commande.`, flags: 64 });
+                            else await interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, flags: 64 });
+                        } catch (e) { }
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}${getLogContext(interaction)}`.brightRed);
                         console.log(error);
                     }
                 }
@@ -120,10 +142,13 @@ module.exports = {
                 if (client.commands.get(commandName).type == "contextmenu") {
                     try {
                         client.commands.get(commandName).execute(interaction);
-                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}${getLogContext(interaction)}`.brightGreen);
                     } catch (error) {
-                        interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, ephemeral: true });
-                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightRed);
+                        try {
+                            if (interaction.replied || interaction.deferred) await interaction.followUp({ content: `Une erreur est survenue lors de l'exécution de la commande.`, flags: 64 });
+                            else await interaction.reply({ content: `Une erreur est survenue lors de l'exécution de la commande.`, flags: 64 });
+                        } catch (e) { }
+                        console.log(`[CONTEXT] Commande contextuelle ${commandName} exécutée par ${interaction.user.username}${getLogContext(interaction)}`.brightRed);
                         console.log(error);
                     }
                 }
@@ -136,7 +161,7 @@ module.exports = {
                 if (['button', 'slash'].includes(client.commands.get(commandName).type)) {
                     try {
                         client.commands.get(commandName).execute(interaction);
-                        console.log(`[BUTTON] Bouton ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        console.log(`[BUTTON] Bouton ${commandName} exécuté par ${interaction.user.username}${getLogContext(interaction)}`.brightGreen);
                     } catch (error) { }
                 }
             } else if (interaction.isModalSubmit()) {
@@ -148,7 +173,7 @@ module.exports = {
                 if (['modal', 'slash'].includes(client.commands.get(commandName).type)) {
                     try {
                         client.commands.get(commandName).execute(interaction);
-                        console.log(`[MODAL] Modal ${commandName} exécutée par ${interaction.user.username}, dans le serveur ${interaction.guild.name} , dans le salon ${interaction.channel.name}`.brightGreen);
+                        console.log(`[MODAL] Modal ${commandName} exécuté par ${interaction.user.username}${getLogContext(interaction)}`.brightGreen);
                     } catch (error) { }
                 }
             } else if (interaction.isAutocomplete()) {

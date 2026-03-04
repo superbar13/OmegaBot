@@ -27,7 +27,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('rpg')
         .setDescription('Effectue des actions sur le RPG')
-        .setDMPermission(false)
+        .setContexts(0).setIntegrationTypes(0)
         .addSubcommand(subcommand => subcommand
             .setName('me')
             .setDescription('Affiche les informations sur votre personnage')

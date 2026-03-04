@@ -1,12 +1,12 @@
 // rank command module to be used in index.js (but it's for guilds)
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
+const { StringSelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('clan')
         .setDescription('Gestion des clans')
-        .setDMPermission(false)
+        .setContexts(0).setIntegrationTypes(0)
         .addSubcommand(subcommand => subcommand
             .setName('info')
             .setDescription('Affiche les informations du clan')
@@ -91,20 +91,21 @@ module.exports = {
                 .setDescription('Voici les informations du clan')
 
             // if clan has a logo
+            let files = [];
             if (clan.logo) {
                 // create attachment
-                const attachment = new AttachmentBuilder(clan.logo, 'logo.png');
-                // add attachment to embed
-                embed.attachFiles(attachment);
+                const attachment = new AttachmentBuilder(clan.logo, { name: 'logo.png' });
+                // add attachment to files
+                files.push(attachment);
                 embed.setThumbnail('attachment://logo.png');
             }
 
             // if clan has a banner
             if (clan.banner) {
                 // create attachment
-                const attachment = new AttachmentBuilder(clan.banner, 'banner.png');
-                // add attachment to embed
-                embed.attachFiles(attachment);
+                const attachment = new AttachmentBuilder(clan.banner, { name: 'banner.png' });
+                // add attachment to files
+                files.push(attachment);
                 embed.setImage('attachment://banner.png');
             }
 
@@ -117,7 +118,7 @@ module.exports = {
             )
 
             // send embed
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed], files: files });
         } else if (subcommand == 'create') {
             // get user in the database (interaction user)
             const user = await interaction.client.usersdb.findOne({ id: interaction.user.id });
@@ -288,7 +289,8 @@ module.exports = {
             } else if (clan.members.includes(userToKick.id)) {
                 // wait for 50% + 1 members to vote
                 // create select menu
-                const selectMenu = new SelectMenuBuilder()
+                // create select menu
+                const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId('kick')
                     .setPlaceholder('Veuillez voter')
                     .addOptions([
@@ -330,7 +332,7 @@ module.exports = {
                     // if user already voted
                     if (voters.includes(interaction.user.id)) {
                         // send embed
-                        await interaction.reply({ content: '> ❌ Vous avez déjà voté.', ephemeral: true });
+                        await interaction.reply({ content: '> ❌ Vous avez déjà voté.', flags: 64 });
                     } else {
                         // add user to voters
                         voters.push(interaction.user.id);
@@ -351,7 +353,7 @@ module.exports = {
                         }
 
                         // send embed
-                        await interaction.reply({ content: '> ✅ Votre vote a été pris en compte.', ephemeral: true });
+                        await interaction.reply({ content: '> ✅ Votre vote a été pris en compte.', flags: 64 });
                     }
                 });
 
@@ -402,7 +404,8 @@ module.exports = {
 
             // wait for 50% + 1 members to vote
             // create select menu
-            const selectMenu = new SelectMenuBuilder()
+            // create select menu
+            const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('remove')
                 .setPlaceholder('Veuillez voter')
                 .addOptions([
@@ -444,7 +447,7 @@ module.exports = {
                 // if user already voted
                 if (voters.includes(interaction.user.id)) {
                     // send embed
-                    await interaction.reply({ content: '> ❌ Vous avez déjà voté.', ephemeral: true });
+                    await interaction.reply({ content: '> ❌ Vous avez déjà voté.', flags: 64 });
                 } else {
                     // add user to voters
                     voters.push(interaction.user.id);
@@ -465,7 +468,7 @@ module.exports = {
                     }
 
                     // send embed
-                    await interaction.reply({ content: '> ✅ Votre vote a été pris en compte.', ephemeral: true });
+                    await interaction.reply({ content: '> ✅ Votre vote a été pris en compte.', flags: 64 });
                 }
             });
 

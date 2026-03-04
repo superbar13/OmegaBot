@@ -24,7 +24,7 @@ const { PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 function getCat(name, toS) {
     let cat = toS[name] || Object.entries(toS).find(([key, value]) => value.displayname == name)[1];
     if (!cat || (cat.type != 'showedcategory' && cat.type != 'databasecategory'))
-        return interaction.editReply({ content: `La catégorie \`${name}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true });
+        return interaction.editReply({ content: `La catégorie \`${name}\` n'existe pas dans le module \`${modulename}\`.`, flags: 64 });
 
     cat.name = name;
     let childs = cat.childs;
@@ -134,7 +134,7 @@ module.exports = {
                 )
         )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'config',
     async execute(interaction) {
         // defer the reply
@@ -144,7 +144,7 @@ module.exports = {
 
         // check if the server is in the database
         var server = await interaction.client.serversdb.findOne({ id: interaction.guild.id });
-        if (!server) return interaction.editReply({ content: 'Le serveur n\'est pas enregistré dans la base de données !', ephemeral: true });
+        if (!server) return interaction.editReply({ content: 'Le serveur n\'est pas enregistré dans la base de données !', flags: 64 });
 
         // check which subcommand is used
         if (interaction.options.getSubcommand() == 'show') {
@@ -170,7 +170,7 @@ module.exports = {
             // check if the module exists
             if (!interaction.client.modules[modulestring]
                 && !Object.entries(interaction.client.modules).find(([key, value]) => value.showname == modulestring)
-            ) return interaction.editReply({ content: 'Le module n\'existe pas !', ephemeral: true });
+            ) return interaction.editReply({ content: 'Le module n\'existe pas !', flags: 64 });
             // get module REAL name (not displayname) (key of the module in the collection)
             else if (!interaction.client.modules[modulestring])
                 modulestring = Object.keys(interaction.client.modules).find(key => interaction.client.modules[key].showname == modulestring);
@@ -178,7 +178,7 @@ module.exports = {
             // we find the module
             let module = interaction.client.modules[modulestring] || Object.entries(interaction.client.modules).find(([key, value]) => value.showname == modulestring);
 
-            if (!module.guildconfig) return interaction.editReply({ content: 'Le module n\'a pas de configuration serveur !', ephemeral: true });
+            if (!module.guildconfig) return interaction.editReply({ content: 'Le module n\'a pas de configuration serveur !', flags: 64 });
 
             // startChars
             let startChars = ['##', '###', '>', '-', '+', ':', '/', '=', '°', '~'];
@@ -288,17 +288,17 @@ module.exports = {
             let choosenmodule = modules[modulename] || Object.entries(modules).find(([key, value]) => value.showname == modulename)[1];
 
             // check if the module exists
-            if (!choosenmodule) return interaction.editReply({ content: `Le module \`${modulename}\` n'existe pas.`, ephemeral: true });
+            if (!choosenmodule) return interaction.editReply({ content: `Le module \`${modulename}\` n'existe pas.`, flags: 64 });
 
             // get module REAL name
             if (!modules[modulename]) modulename = Object.keys(modules).find(key => modules[key].showname == modulename);
 
             // check if the module has a guildconfig
-            if (!choosenmodule.guildconfig) return interaction.editReply({ content: `Le module \`${modulename}\` n'a pas de configuration serveur.`, ephemeral: true });
+            if (!choosenmodule.guildconfig) return interaction.editReply({ content: `Le module \`${modulename}\` n'a pas de configuration serveur.`, flags: 64 });
 
             // we get the option name
             let optionname = interaction.options.getString('option');
-            if (!optionname) return interaction.editReply({ content: `Vous devez spécifier une option à configurer.`, ephemeral: true });
+            if (!optionname) return interaction.editReply({ content: `Vous devez spécifier une option à configurer.`, flags: 64 });
 
             // set the variable tosearch to the guildconfig of the module
             let tosearch = choosenmodule.guildconfig;
@@ -320,7 +320,7 @@ module.exports = {
                 tosearch, option, catObj, catSubObj = getOptionInCat(tosearch, option, catObj, catSubObj);
                 if (!option || ['showedcategory', 'databasecategory'].includes(option.type))
                     return interaction.editReply({
-                        content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, ephemeral: true
+                        content: `L'option \`${optionname}\` n'existe pas dans le module \`${modulename}\`.`, flags: 64
                     });
             }
 
@@ -349,64 +349,64 @@ module.exports = {
                 if (optionvalue && !optionvalue.startsWith('select')) {
                     // check if the option value is valid
                     if (option.type == 'boolean') {
-                        if (optionvalue != 'true' && optionvalue != 'false') return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (optionvalue != 'true' && optionvalue != 'false') return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         if (typeof optionvalue == 'boolean') modifiedvalue = optionvalue;
                         else modifiedvalue = optionvalue == 'true';
                     } else if (option.type == 'number') {
-                        if (isNaN(optionvalue)) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (isNaN(optionvalue)) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         modifiedvalue = parseInt(optionvalue);
                     } else if (option.type == 'string') {
-                        if (optionvalue.length > 100) return interaction.editReply({ content: `La valeur \`${optionvalue}\` est trop longue pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (optionvalue.length > 100) return interaction.editReply({ content: `La valeur \`${optionvalue}\` est trop longue pour l'option \`${optionname}\`.`, flags: 64 });
                         modifiedvalue = optionvalue;
                     } else if (option.type == 'channel') {
                         optionvalue = optionvalue.replace('<#', '').replace('>', '');
                         const channel = interaction.guild.channels.cache.get(optionvalue) || interaction.guild.channels.cache.find(channel => channel.name == optionvalue);
-                        if (!channel) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (!channel) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         modifiedvalue = channel.id;
                     } else if (option.type == 'role') {
                         optionvalue = optionvalue.replace('<@&', '').replace('>', '');
                         const role = interaction.guild.roles.cache.get(optionvalue) || interaction.guild.roles.cache.find(role => role.name == optionvalue);
-                        if (!role) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (!role) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         modifiedvalue = role.id;
                     } else if (option.type == 'user') {
                         optionvalue = optionvalue.replace('<@', '').replace('>', '').replace('!', '');
                         const user = interaction.client.users.cache.get(optionvalue) || interaction.client.users.cache.find(user => user.username == optionvalue);
-                        if (!user) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (!user) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         modifiedvalue = user.id;
                     } else if (option.type == 'message') {
                         optionvalue = optionvalue.replace(`https://discord.com/channels/${interaction.guild.id}/${interaction.channel.id}/`, '');
                         const message = await interaction.guild.messages.fetch(optionvalue);
-                        if (!message) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (!message) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         modifiedvalue = message.id;
                     } else if (option.type == 'array') {
                         // check if it is an array
-                        if (optionvalue.split(',').length == 1) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (optionvalue.split(',').length == 1) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         modifiedvalue = optionvalue.split(',');
                         // check if the array values are valid
                         for (var i = 0; i < modifiedvalue.length; i++) {
                             if (option.arraytype == 'user') {
                                 const user = interaction.client.users.cache.get(modifiedvalue[i]) || interaction.client.users.cache.find(user => user.username == modifiedvalue[i]);
-                                if (!user) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                                if (!user) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                             } else if (option.arraytype == 'role') {
                                 const role = interaction.guild.roles.cache.get(modifiedvalue[i]) || interaction.guild.roles.cache.find(role => role.name == modifiedvalue[i]);
-                                if (!role) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                                if (!role) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                             } else if (option.arraytype == 'channel') {
                                 const channel = interaction.guild.channels.cache.get(modifiedvalue[i]) || interaction.guild.channels.cache.find(channel => channel.name == modifiedvalue[i]);
-                                if (!channel) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                                if (!channel) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                             } else if (option.arraytype == 'number') {
-                                if (isNaN(modifiedvalue[i])) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                                if (isNaN(modifiedvalue[i])) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                             } else if (option.arraytype == 'string') {
-                                if (modifiedvalue[i].length > 100) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` est trop longue pour l'option \`${optionname}\`.`, ephemeral: true });
+                                if (modifiedvalue[i].length > 100) return interaction.editReply({ content: `La valeur \`${modifiedvalue[i]}\` est trop longue pour l'option \`${optionname}\`.`, flags: 64 });
                             }
                         }
                     } else if (option.type == 'sendmessage') {
                         optionvalue = optionvalue.replace('<#', '').replace('>', '');
                         const channel = interaction.guild.channels.cache.get(optionvalue) || interaction.guild.channels.cache.find(channel => channel.name == optionvalue);
-                        if (!channel) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, ephemeral: true });
+                        if (!channel) return interaction.editReply({ content: `La valeur \`${optionvalue}\` n'est pas valide pour l'option \`${optionname}\`.`, flags: 64 });
                         // send the message
                         const message = await channel.send({ content: "Message configuré par l'option " + optionname + " qui se mettra à jour automatiquement." });
                         modifiedvalue = message.id;
-                    } else return interaction.editReply({ content: 'Une erreur est survenue.', ephemeral: true });
+                    } else return interaction.editReply({ content: 'Une erreur est survenue.', flags: 64 });
                 } else {
                     // else if there is no value, ask the user to choose a value                    
                     // create the ActionRow and the select menu for the options that need it
@@ -429,11 +429,11 @@ module.exports = {
                                         },
                                     ]),
                             );
-                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], ephemeral: true });
+                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], flags: 64 });
                     } else if (option.type == 'number') {
-                        return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, ephemeral: true });
+                        return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, flags: 64 });
                     } else if (option.type == 'string') {
-                        return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, ephemeral: true });
+                        return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, flags: 64 });
                     } else if (option.type == 'channel') {
                         const row = new ActionRowBuilder()
                             .addComponents(
@@ -457,7 +457,7 @@ module.exports = {
                             }
                             if (i == 25) break;
                         }
-                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], ephemeral: true });
+                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], flags: 64 });
                     } else if (option.type == 'role') {
                         const row = new ActionRowBuilder()
                             .addComponents(
@@ -479,7 +479,7 @@ module.exports = {
                             ]);
                             if (i == 25) break;
                         }
-                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], ephemeral: true });
+                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], flags: 64 });
                     } else if (option.type == 'user') {
                         const row = new ActionRowBuilder()
                             .addComponents(
@@ -501,9 +501,9 @@ module.exports = {
                             ]);
                             if (i == 25) break;
                         }
-                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], ephemeral: true });
+                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], flags: 64 });
                     } else if (option.type == 'message') {
-                        return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, ephemeral: true });
+                        return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, flags: 64 });
                     } else if (option.type == 'array') {
                         modifiedvalue = [];
                         // check what is the type of the array
@@ -538,13 +538,13 @@ module.exports = {
                                         .setLabel('Confirmer')
                                         .setStyle(ButtonStyle.Primary)
                                 );
-                            interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row, row2], ephemeral: true });
+                            interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row, row2], flags: 64 });
                         } else if (option.arraytype == 'string') {
-                            return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, ephemeral: true });
+                            return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, flags: 64 });
                         } else if (option.arraytype == 'number') {
-                            return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, ephemeral: true });
+                            return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, flags: 64 });
                         } else if (option.arraytype == 'message') {
-                            return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, ephemeral: true });
+                            return interaction.editReply({ content: `Il n'est pas possible de choisir une valeur en menu déroulant pour l'option \`${optionname}\`.`, flags: 64 });
                         } else if (option.arraytype == 'channel') {
                             // the user can choose multiple channels, so we create an select menu and an confirm button
                             const row = new ActionRowBuilder()
@@ -578,7 +578,7 @@ module.exports = {
                                         .setLabel('Confirmer')
                                         .setStyle(ButtonStyle.Primary)
                                 );
-                            interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row, row2], ephemeral: true });
+                            interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row, row2], flags: 64 });
                         } else if (option.arraytype == 'role') {
                             // the user can choose multiple roles, so we create an select menu and an confirm button
                             const row = new ActionRowBuilder()
@@ -610,9 +610,9 @@ module.exports = {
                                         .setLabel('Confirmer')
                                         .setStyle(ButtonStyle.Primary)
                                 );
-                            interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row, row2], ephemeral: true });
+                            interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row, row2], flags: 64 });
                         } else {
-                            interaction.editReply({ content: `Une erreur est survenue.`, ephemeral: true });
+                            interaction.editReply({ content: `Une erreur est survenue.`, flags: 64 });
                         }
                     } else if (option.type == 'sendmessage') {
                         const row = new ActionRowBuilder()
@@ -637,8 +637,8 @@ module.exports = {
                             }
                             if (i == 25) break;
                         }
-                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], ephemeral: true });
-                    } else interaction.editReply({ content: `Une erreur est survenue.`, ephemeral: true });
+                        interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, components: [row], flags: 64 });
+                    } else interaction.editReply({ content: `Une erreur est survenue.`, flags: 64 });
 
                     // if the option need a value, create a collector to get the value (and the command will continue only when the collector is ended)
                     let collector = interaction.channel.createMessageComponentCollector({ filter: (i) => i.user.id == interaction.user.id, time: 60000 });
@@ -735,21 +735,21 @@ module.exports = {
                         // if the reason is 'time', the collector is ended because the time is over
                         if (reason == 'time') {
                             stopcommand = true;
-                            return interaction.editReply({ content: `Vous avez mis trop de temps à répondre.`, ephemeral: true, components: [] });
+                            return interaction.editReply({ content: `Vous avez mis trop de temps à répondre.`, flags: 64, components: [] });
                         } else if (reason == 'success') {
                             return interaction.editReply({ components: [] });
                         } else {
-                            return interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, ephemeral: true, components: [] });
+                            return interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, flags: 64, components: [] });
                         }
                     });
                 }
 
                 if (!modifiedvalue)
-                    return interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, ephemeral: true, components: [] });
+                    return interaction.editReply({ content: `Veuillez choisir une valeur pour l'option \`${optionname}\`.`, flags: 64, components: [] });
 
                 // check if the option value is the same as the current value
                 if (server[optionname] == modifiedvalue)
-                    return interaction.editReply({ content: `La valeur \`${modifiedvalue}\` est déjà celle de l'option \`${optionname}\`.`, ephemeral: true });
+                    return interaction.editReply({ content: `La valeur \`${modifiedvalue}\` est déjà celle de l'option \`${optionname}\`.`, flags: 64 });
                 /////////////////////// FIN VALEUR ///////////////////////
 
 

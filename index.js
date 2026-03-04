@@ -88,7 +88,7 @@ client.bulkutility = require('./utils/BulkUtility.js');
 
 // when the client is ready, run this code
 // this event will only trigger one time after logging in
-client.once('ready', async () => {
+client.once('clientReady', async () => {
 	console.log('[CLIENT] Ready!'.brightGreen);
 
 	client.embedcolor = "#3EA9E0";
@@ -548,8 +548,10 @@ client.once('ready', async () => {
 		// USER INSTALL SUPPORT
 		// We add integration_types and contexts to the command
 		// By default, a command is available in guilds and in user install (DMs, Group DMs, etc.)
-		commandData.integration_types = [0, 1];
-		commandData.contexts = [0, 1, 2];
+		if (!commandData.contexts) {
+			commandData.integration_types = [0, 1];
+			commandData.contexts = [0, 1, 2];
+		}
 
 		// If the command is restricted to guilds only (dm_permission is false)
 		if (commandData.dm_permission === false) {

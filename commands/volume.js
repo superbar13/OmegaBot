@@ -11,7 +11,7 @@ module.exports = {
                 .setMinValue(1)
                 .setMaxValue(200)
         )
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'music',
     async execute(interaction) {
         if (!interaction.client.config.modules['music'].enabled && !interaction.client.config.modules['radio'].enabled) {

@@ -4,7 +4,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('pause')
         .setDescription('Met en pause la lecture')
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'music',
     async execute(interaction) {
         await interaction.deferReply();

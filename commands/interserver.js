@@ -1,7 +1,7 @@
 // interserver command module to be used in index.js
 
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -296,26 +296,26 @@ module.exports = {
                 .setRequired(true)
             )
         )
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'interserver',
     async execute(interaction) {
         await interaction.deferReply();
-        if (!interaction.client.config.modules['interserver']?.enabled) return interaction.editReply({ content: 'Le module interserver est désactivé !', ephemeral: true });
+        if (!interaction.client.config.modules['interserver']?.enabled) return interaction.editReply({ content: 'Le module interserver est désactivé !', flags: 64 });
         // retrouve la sous-commande
         var type = interaction.options.getSubcommand();
         if (type == 'create') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
-            if (nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', ephemeral: true });
+            if (nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', flags: 64 });
             var channel = interaction.options.getChannel('channel');
             var description = interaction.options.getString('description');
-            if (description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', ephemeral: true });
+            if (description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', flags: 64 });
             var private = interaction.options.getBoolean('private');
             var keycode = interaction.options.getString('keycode');
-            if (keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', ephemeral: true });
+            if (keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', flags: 64 });
             var invites = interaction.options.getBoolean('invites');
             var antispam = interaction.options.getBoolean('antispam');
             var antilinks = interaction.options.getBoolean('antilinks');
@@ -324,27 +324,27 @@ module.exports = {
             var gifs = interaction.options.getBoolean('gifs');
             var typing = interaction.options.getBoolean('typing');
             var logo = interaction.options.getString('logo');
-            if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
+            if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', flags: 64 });
             var banner = interaction.options.getString('banner');
-            if (!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', ephemeral: true });
+            if (!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', flags: 64 });
             var bannedlinks = interaction.options.getString('bannedlinks');
-            if (bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', flags: 64 });
             bannedlinks = bannedlinks.split(',').map(link => link.trim());
             for (var i = 0; i < bannedlinks.length; i++) {
-                if (bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if (!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', ephemeral: true });
+                if (bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', flags: 64 });
+                if (!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', flags: 64 });
             }
             var bannedwords = interaction.options.getString('bannedwords');
-            if (bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', flags: 64 });
             bannedwords = bannedwords.split(',').map(link => link.trim());
             for (var i = 0; i < bannedwords.length; i++) {
-                if (bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if (bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', ephemeral: true });
+                if (bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', flags: 64 });
+                if (bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', flags: 64 });
             }
             var maxspamcount = interaction.options.getString('maxspamcount');
-            if (maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', ephemeral: true });
+            if (maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', flags: 64 });
             var maxspamtime = interaction.options.getString('maxspamtime');
-            if (maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', ephemeral: true });
+            if (maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', flags: 64 });
 
             // verifie si il n'y a pas deja un interserveur avec ce nom ou ce server et salon
             let interserver = await interaction.client.interserversdb.findOne(
@@ -429,7 +429,7 @@ module.exports = {
             );
         } else if (type == 'delete') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -481,17 +481,17 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
         } else if (type == 'modify') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
-            if (nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', ephemeral: true });
+            if (nom.length > 20 || nom.length < 3) return interaction.editReply({ content: 'Le nom de l\'interserveur doit être compris entre 3 et 20 caractères !', flags: 64 });
             var channel = interaction.options.getChannel('channel');
             var description = interaction.options.getString('description');
-            if (description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', ephemeral: true });
+            if (description.length > 200) return interaction.editReply({ content: 'La description de l\'interserveur doit être inférieure à 200 caractères !', flags: 64 });
             var private = interaction.options.getBoolean('private');
             var keycode = interaction.options.getString('keycode');
-            if (keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', ephemeral: true });
+            if (keycode.length > 10 || keycode.length < 5) return interaction.editReply({ content: 'Le keycode de l\'interserveur doit être compris entre 5 et 10 caractères !', flags: 64 });
             var invites = interaction.options.getBoolean('invites');
             var antispam = interaction.options.getBoolean('antispam');
             var antilinks = interaction.options.getBoolean('antilinks');
@@ -500,27 +500,27 @@ module.exports = {
             var gifs = interaction.options.getBoolean('gifs');
             var typing = interaction.options.getBoolean('typing');
             var logo = interaction.options.getString('logo');
-            if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', ephemeral: true });
+            if (!logo.startsWith('http') || (!logo.endsWith('.png') && !logo.endsWith('.jpg') && !logo.endsWith('.jpeg'))) return interaction.editReply({ content: 'Le logo de l\'interserveur doit être une image !', flags: 64 });
             var banner = interaction.options.getString('banner');
-            if (!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', ephemeral: true });
+            if (!banner.startsWith('http') || (!banner.endsWith('.png') && !banner.endsWith('.jpg') && !banner.endsWith('.jpeg'))) return interaction.editReply({ content: 'La bannière de l\'interserveur doit être une image !', flags: 64 });
             var bannedlinks = interaction.options.getString('bannedlinks');
-            if (bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedlinks.length > 200) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 200 caractères !', flags: 64 });
             bannedlinks = bannedlinks.split(',').map(link => link.trim());
             for (var i = 0; i < bannedlinks.length; i++) {
-                if (bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if (!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', ephemeral: true });
+                if (bannedlinks[i].length > 20) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être inférieurs à 20 caractères !', flags: 64 });
+                if (!bannedlinks[i].startsWith('http')) return interaction.editReply({ content: 'Les liens bannis de l\'interserveur doivent être des liens !', flags: 64 });
             }
             var bannedwords = interaction.options.getString('bannedwords');
-            if (bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', ephemeral: true });
+            if (bannedwords.length > 200) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 200 caractères !', flags: 64 });
             bannedwords = bannedwords.split(',').map(link => link.trim());
             for (var i = 0; i < bannedwords.length; i++) {
-                if (bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', ephemeral: true });
-                if (bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', ephemeral: true });
+                if (bannedwords[i].length > 20) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être inférieurs à 20 caractères !', flags: 64 });
+                if (bannedwords[i].startsWith('http')) return interaction.editReply({ content: 'Les mots bannis de l\'interserveur doivent être des mots !', flags: 64 });
             }
             var maxspamcount = interaction.options.getString('maxspamcount');
-            if (maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', ephemeral: true });
+            if (maxspamcount > 15 && antispam) return interaction.editReply({ content: 'Le nombre maximum de messages autorisés en un certain temps de l\'interserveur doit être inférieur à 15 messages !', flags: 64 });
             var maxspamtime = interaction.options.getString('maxspamtime');
-            if (maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', ephemeral: true });
+            if (maxspamtime > 15 && antispam) return interaction.editReply({ content: 'Le temps maximum de l\'interserveur doit être inférieur à 15 secondes !', flags: 64 });
 
             // verifie si il y a un interserveur avec ce nom
             let interserver = await interaction.client.interserversdb.findOne({ name: nom });
@@ -671,7 +671,7 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
         } else if (type == 'join') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -786,7 +786,7 @@ module.exports = {
             );
         } else if (type == 'leave') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -850,7 +850,7 @@ module.exports = {
             );
         } else if (type == 'ban') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -914,7 +914,7 @@ module.exports = {
             );
         } else if (type == 'unban') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');
@@ -1007,7 +1007,7 @@ module.exports = {
                     break;
                 }
             }
-            if (!message) return interaction.editReply({ content: 'Le message n\'a pas été trouvé !', ephemeral: true });
+            if (!message) return interaction.editReply({ content: 'Le message n\'a pas été trouvé !', flags: 64 });
 
             // verifie si l'utilisateur est le propriétaire de l'interserveur ou, celui qui a envoyé le message
             if (interserver.owner != interaction.user.id && message.user != interaction.user.id) {
@@ -1052,7 +1052,7 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
         } else if (type == 'leave-server') {
             // check si l'user est admin ou pas
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', ephemeral: true });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.editReply({ content: 'Vous n\'avez pas la permission d\'utiliser cette commande !', flags: 64 });
 
             // retrouve les options
             var nom = interaction.options.getString('nom');

@@ -4,7 +4,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('skip')
         .setDescription('Passer à la musique suivante')
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'music',
     async execute(interaction) {
         if (!interaction.client.config.modules['music'].enabled) return interaction.reply({ content: '> ❌ Le module musique est désactivé.' });

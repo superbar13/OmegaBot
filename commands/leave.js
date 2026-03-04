@@ -8,7 +8,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('leave')
         .setDescription('Quitter le salon vocal')
-        .setDMPermission(false),
+        .setContexts(0).setIntegrationTypes(0),
     category: 'music',
     async execute(interaction) {
         await interaction.deferReply();
@@ -16,7 +16,7 @@ module.exports = {
         var voiceconfig = await interaction.client.serversdb.findOne({ id: interaction.guild.id }).select('voiceconfig queue music'); // get the voiceconfig
         let vcfg = voiceconfig?.voiceconfig;
         if ((vcfg?.adminonly || false) == true && !interaction?.member?.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            interaction.editReply({ content: '> ❌ Seul un administrateur peut utiliser cette commande.', ephemeral: true });
+            interaction.editReply({ content: '> ❌ Seul un administrateur peut utiliser cette commande.', flags: 64 });
             return;
         } else {
             // detect voice channel

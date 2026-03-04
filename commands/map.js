@@ -1,12 +1,12 @@
 // map command module to be used in index.js (but it's for guilds)
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const { SelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
+const { StringSelectMenuBuilder, ActionRowBuilder, SlashCommandBuilder } = require('@discordjs/builders');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('map')
         .setDescription('Affiche la carte du RPG')
-        .setDMPermission(false)
+        .setContexts(0).setIntegrationTypes(0)
         .addSubcommand(subcommand => subcommand.setName('show')
             .setDescription('Affiche la carte du RPG'))
         .addSubcommand(subcommand => subcommand.setName('travel')

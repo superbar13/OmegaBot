@@ -83,7 +83,7 @@ module.exports = {
 
             // get user info
             let user = await mcapi.user(username);
-            if(!user || !user?.id) return interaction.editReply({ content: 'Utilisateur introuvable', ephemeral: true });
+            if(!user || !user?.id) return interaction.editReply({ content: 'Utilisateur introuvable', flags: 64 });
 
             let namehistory = await mcapi.nameHistory("username", username);
             let ofCape = await mcapi.ofCape(username);
@@ -118,7 +118,7 @@ module.exports = {
 
             // get server info
             let server = await mcapi.server(servername);
-            if(!server || !server?.ip) return interaction.editReply({ content: 'Serveur introuvable', ephemeral: true });
+            if(!server || !server?.ip) return interaction.editReply({ content: 'Serveur introuvable', flags: 64 });
 
             // create embed
             const embed = new EmbedBuilder()

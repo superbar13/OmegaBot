@@ -1,6 +1,6 @@
 // info command module to be used in index.js
 
-const { SelectMenuBuilder, ActionRowBuilder, ButtonBuilder, SlashCommandBuilder } = require('@discordjs/builders');
+const { StringSelectMenuBuilder, ActionRowBuilder, ButtonBuilder, SlashCommandBuilder } = require('@discordjs/builders');
 const { EmbedBuilder, ButtonStyle } = require('discord.js');
 const { PermissionsBitField } = require('discord.js');
 const moment = require('moment');
